@@ -26,24 +26,10 @@ export function SummaryCard({
   return (
     <section
       className={clsx(
-        "relative overflow-hidden rounded-[var(--radius-lg)] border border-border/60 p-4 shadow-[var(--shadow-card)] sm:p-5",
+        "relative overflow-hidden rounded-[var(--radius-lg)] border border-border/60 bg-surface p-4 shadow-[var(--shadow-card)] sm:p-5",
         TONES[tone].split(" ")[0],
       )}
     >
-      <div
-        className="pointer-events-none absolute -bottom-8 -right-6 size-28 rounded-full opacity-30 blur-2xl"
-        style={{
-          background:
-            tone === "green"
-              ? "var(--ok)"
-              : tone === "blue"
-                ? "var(--accent-blue)"
-                : tone === "purple"
-                  ? "var(--accent-purple)"
-                  : "var(--accent-orange)",
-        }}
-        aria-hidden
-      />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="mb-3 flex items-center gap-2">

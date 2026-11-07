@@ -5,8 +5,8 @@ import { productsRo } from "./products-messages";
 import { recipesRo } from "./recipes";
 
 export const ro: Record<MessageKey, string> = {
-  "app.name": "Buget de familie",
-  "app.tagline": "Bugetul tău, simplu.",
+  "app.name": "Bugetify",
+  "app.tagline": "Planifică. Economisește. Trăiește.",
 
   "nav.dashboard": "Privire de ansamblu",
   "nav.dashboardHome": "Dashboard",

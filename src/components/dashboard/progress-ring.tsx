@@ -26,7 +26,7 @@ export function ProgressRing({
           fill="none"
           stroke="currentColor"
           strokeWidth={stroke}
-          className="text-accent-orange/20"
+          className="text-brand/20"
         />
         <circle
           cx={size / 2}
@@ -38,7 +38,7 @@ export function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="text-accent-orange transition-[stroke-dashoffset]"
+          className="text-brand transition-[stroke-dashoffset]"
         />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular text-fg">

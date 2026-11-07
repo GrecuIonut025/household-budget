@@ -4,8 +4,8 @@ import { productsEn } from "./products-messages";
 import { recipesEn } from "./recipes";
 
 export const en = {
-  "app.name": "Household Budget",
-  "app.tagline": "Your budget, simply.",
+  "app.name": "Bugetify",
+  "app.tagline": "Plan. Save. Thrive.",
 
   "nav.dashboard": "Overview",
   "nav.dashboardHome": "Dashboard",

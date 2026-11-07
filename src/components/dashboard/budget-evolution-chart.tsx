@@ -111,8 +111,8 @@ export function BudgetEvolutionChart({
           >
             <defs>
               <linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
+                <stop offset="0%" stopColor="#7c5cff" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="#7c5cff" stopOpacity="0.02" />
               </linearGradient>
             </defs>
             {geometry.budgetY !== null ? (
@@ -128,8 +128,8 @@ export function BudgetEvolutionChart({
               />
             ) : null}
             <path d={geometry.areaPath} fill="url(#spendFill)" />
-            <path d={geometry.spendPath} fill="none" stroke="#60a5fa" strokeWidth="2.5" />
-            <circle cx={geometry.lastX} cy={geometry.lastY} r="4.5" fill="#60a5fa" />
+            <path d={geometry.spendPath} fill="none" stroke="#a594ff" strokeWidth="2.5" />
+            <circle cx={geometry.lastX} cy={geometry.lastY} r="4.5" fill="#a594ff" />
           </svg>
           <div
             className="pointer-events-none absolute rounded-lg bg-white/10 px-2.5 py-1.5 text-xs backdrop-blur"

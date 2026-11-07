@@ -12,82 +12,28 @@ import { Sheet } from "./sheet";
 export function SidebarNav() {
   const pathname = usePathname();
   const { t } = useI18n();
+  const items = NAV_ITEMS.filter((item) => !item.href.includes("#"));
+
   return (
-    <nav aria-label={t("nav.primary")} className="flex flex-col gap-4">
-      {NAV_GROUPS.map((group) => {
-        const GroupIcon = group.icon;
-        const groupActive = group.href ? isActive(pathname, group.href) : false;
-
-        if (group.href && GroupIcon) {
-          return (
-            <div key={group.id}>
-              <Link
-                href={group.href}
-                aria-current={groupActive ? "page" : undefined}
-                className={clsx(
-                  "flex min-h-10 items-center gap-2.5 rounded-[var(--radius-md)] px-3 text-sm font-semibold transition",
-                  groupActive
-                    ? "bg-brand text-brand-fg"
-                    : "text-sidebar-fg/90 hover:bg-sidebar-hover hover:text-sidebar-fg",
-                )}
-              >
-                <GroupIcon size={17} aria-hidden strokeWidth={groupActive ? 2.25 : 2} />
-                {t("nav.dashboardHome")}
-              </Link>
-              <ul className="mt-1.5 flex flex-col gap-0.5 pl-2">
-                {group.items.map((item) => {
-                  const active = isActive(pathname, item.href);
-                  return (
-                    <li key={`${item.href}-${item.label}`}>
-                      <Link
-                        href={item.href}
-                        aria-current={active ? "page" : undefined}
-                        className={clsx(
-                          "flex min-h-9 items-center rounded-full px-3 text-[13px] font-medium transition",
-                          active
-                            ? "bg-brand-soft text-brand-strong"
-                            : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-fg",
-                        )}
-                      >
-                        {t(item.label)}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          );
-        }
-
+    <nav aria-label={t("nav.primary")} className="flex flex-col gap-1">
+      {items.map((item) => {
+        const active = isActive(pathname, item.href);
+        const Icon = item.icon;
         return (
-          <div key={group.id}>
-            <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted">
-              {t(group.label)}
-            </p>
-            <ul className="flex flex-col gap-0.5">
-              {group.items.map((item) => {
-                const active = isActive(pathname, item.href);
-                const Icon = item.icon;
-                return (
-                  <li key={`${item.href}-${item.label}`}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={clsx(
-                        "flex min-h-10 items-center gap-2.5 rounded-[var(--radius-md)] px-3 text-sm font-medium transition",
-                        active
-                          ? "bg-brand-soft text-brand-strong"
-                          : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-fg",
-                      )}
-                    >
-                      <Icon size={17} aria-hidden strokeWidth={active ? 2.25 : 2} />
-                      {t(item.label)}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={clsx(
+              "flex min-h-11 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm font-medium transition",
+              active
+                ? "bg-brand text-brand-fg shadow-[0_8px_24px_-12px_var(--brand)]"
+                : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-fg",
+            )}
+          >
+            <Icon size={18} aria-hidden strokeWidth={active ? 2.25 : 2} />
+            {t(item.label)}
+          </Link>
         );
       })}
     </nav>
