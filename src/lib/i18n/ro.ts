@@ -1,4 +1,5 @@
 import type { MessageKey } from "./en";
+import { pricesRo } from "./prices-messages";
 import { productsRo } from "./products-messages";
 import { recipesRo } from "./recipes";
 
@@ -51,6 +52,7 @@ export const ro: Record<MessageKey, string> = {
   "role.member.hint": "Înregistrează cheltuieli și gestionează cumpărăturile",
   "role.viewer.hint": "Acces doar pentru citire",
   ...productsRo,
+  ...pricesRo,
 
   "auth.signIn": "Autentificare",
   "auth.signUp": "Creează cont",
