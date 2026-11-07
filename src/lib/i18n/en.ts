@@ -1,3 +1,4 @@
+import { mealsShoppingEn } from "./meals-shopping-messages";
 import { pricesEn } from "./prices-messages";
 import { productsEn } from "./products-messages";
 import { recipesEn } from "./recipes";
@@ -264,6 +265,7 @@ export const en = {
   "offline.body": "Reconnect to the internet to keep using Household Budget.",
 
   ...recipesEn,
+  ...mealsShoppingEn,
 } as const;
 
 export type MessageKey = keyof typeof en;
