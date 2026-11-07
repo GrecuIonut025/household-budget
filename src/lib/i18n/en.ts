@@ -1,3 +1,4 @@
+import { communityEn } from "./community-messages";
 import { mealsShoppingEn } from "./meals-shopping-messages";
 import { pricesEn } from "./prices-messages";
 import { productsEn } from "./products-messages";
@@ -13,6 +14,8 @@ export const en = {
   "nav.products": "Products",
   "nav.priceComparison": "Price comparison",
   "nav.recipes": "Recipes",
+  "nav.community": "Community & Inspiration",
+  "nav.badgeNew": "NEW",
   "nav.mealPlanner": "Meal planner",
   "nav.shoppingLists": "Shopping lists",
   "nav.analytics": "Statistics",
@@ -340,6 +343,7 @@ export const en = {
 
   ...recipesEn,
   ...mealsShoppingEn,
+  ...communityEn,
 } as const;
 
 export type MessageKey = keyof typeof en;

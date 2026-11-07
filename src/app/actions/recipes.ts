@@ -123,6 +123,8 @@ export async function toggleFavorite(formData: FormData): Promise<void> {
     .eq("id", parsed.data.id)
     .eq("household_id", parsed.data.householdId);
   revalidatePath("/recipes", "layout");
+  revalidatePath("/community");
+  revalidatePath("/");
 }
 
 export async function toggleIngredientAtHome(formData: FormData): Promise<void> {

@@ -5,11 +5,13 @@ export function RecipePromo({
   title,
   body,
   cta,
+  communityLabel,
   recipe,
 }: {
   title: string;
   body: string;
   cta: string;
+  communityLabel?: string;
   recipe?: {
     id: string;
     title: string;
@@ -39,16 +41,24 @@ export function RecipePromo({
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           </div>
           <p className="text-sm leading-relaxed text-muted">{body}</p>
+          {communityLabel ? (
+            <Link
+              href="/community"
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-indigo-400 transition-colors hover:text-purple-300"
+            >
+              {communityLabel} →
+            </Link>
+          ) : null}
         </div>
         <div className="mt-4 flex items-center gap-2 border-t border-border-soft pt-3">
           <Link
-            href="/recipes"
+            href="/community"
             className="btn-gradient flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-300 hover:-translate-y-1"
           >
             {cta} <ArrowRight size={14} aria-hidden />
           </Link>
           <Link
-            href="/recipes"
+            href="/community"
             className="inline-flex size-9 items-center justify-center rounded-xl border border-border-soft bg-surface-2 text-muted transition hover:scale-105 hover:text-pink-400"
             aria-label={cta}
           >
@@ -105,6 +115,14 @@ export function RecipePromo({
           </span>
           {recipe.difficultyLabel ? <span>{recipe.difficultyLabel}</span> : null}
         </div>
+        {communityLabel ? (
+          <Link
+            href="/community"
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-indigo-400 transition-colors hover:text-purple-300"
+          >
+            {communityLabel} →
+          </Link>
+        ) : null}
       </div>
       <div className="mt-4 flex items-center gap-2 border-t border-border-soft pt-3">
         <Link

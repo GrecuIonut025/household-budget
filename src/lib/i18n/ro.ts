@@ -1,4 +1,5 @@
 import type { MessageKey } from "./en";
+import { communityRo } from "./community-messages";
 import { mealsShoppingRo } from "./meals-shopping-messages";
 import { pricesRo } from "./prices-messages";
 import { productsRo } from "./products-messages";
@@ -14,6 +15,8 @@ export const ro: Record<MessageKey, string> = {
   "nav.products": "Produse",
   "nav.priceComparison": "Comparare prețuri",
   "nav.recipes": "Rețete",
+  "nav.community": "Comunitate & Inspirație",
+  "nav.badgeNew": "NOU",
   "nav.mealPlanner": "Plan de mese",
   "nav.shoppingLists": "Liste de cumpărături",
   "nav.analytics": "Statistici",
@@ -341,4 +344,5 @@ export const ro: Record<MessageKey, string> = {
 
   ...recipesRo,
   ...mealsShoppingRo,
+  ...communityRo,
 };
