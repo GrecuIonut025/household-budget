@@ -1,6 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import {
+  ArrowRight,
+  Bell,
+  CalendarDays,
+  ChevronDown,
+  ShoppingBasket,
+  Target,
+  Wallet,
+} from "lucide-react";
+import { BudgetEvolutionChart } from "@/components/dashboard/budget-evolution-chart";
+import { CategoryDonut } from "@/components/dashboard/category-donut";
+import { ProgressRing } from "@/components/dashboard/progress-ring";
+import { RecipePromo } from "@/components/dashboard/recipe-promo";
+import { SummaryCard } from "@/components/dashboard/summary-card";
 import { AddTransactionButton } from "@/components/transaction-form";
 import { TransactionList } from "@/components/transaction-list";
 import {
@@ -8,7 +21,6 @@ import {
   Card,
   CardTitle,
   EmptyState,
-  PageHeader,
   ProgressBar,
   Section,
   Stat,
@@ -21,6 +33,11 @@ import {
   spendingByMember,
   type EngineContribution,
 } from "@/lib/budget-engine";
+import {
+  buildCategorySlices,
+  buildEvolutionSeries,
+  type EvolutionRange,
+} from "@/lib/dashboard-charts";
 import {
   getActiveReservations,
   getCategories,
@@ -35,7 +52,9 @@ import {
 import { getMembers, requireAppContext } from "@/lib/data/context";
 import { getShoppingListPreviews } from "@/lib/data/shopping-lists";
 import { canWrite, isAdmin } from "@/lib/data/types";
-import { formatDate, todayFor } from "@/lib/format";
+import { addDays, currentMonth } from "@/lib/dates";
+import { formatMonthLabel, todayFor } from "@/lib/format";
+import { categoryLabel } from "@/lib/i18n/category";
 import { getTranslator } from "@/lib/i18n/server";
 import { formatMoney, toMinor } from "@/lib/money";
 
@@ -44,13 +63,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("nav.dashboard") };
 }
 
+function avatarLetter(name: string): string {
+  return name.trim().slice(0, 1).toUpperCase() || "?";
+}
+
 export default async function DashboardPage() {
   const ctx = await requireAppContext();
   const { t, locale } = await getTranslator();
   const { household, role } = ctx.active;
   const today = todayFor(household.timezone);
-  const money = (minor: number) =>
-    formatMoney(minor, household.currency, locale);
+  const money = (minor: number) => formatMoney(minor, household.currency, locale);
+  const month = currentMonth(today);
 
   const [
     budget,
@@ -70,18 +93,14 @@ export default async function DashboardPage() {
     getShoppingListPreviews(household.id),
   ]);
 
+  const chartFrom = addDays(today, -364);
+  const chartTransactions = await getTransactionsBetween(household.id, chartFrom, today);
+
   const periodTransactions = budget
-    ? await getTransactionsBetween(
-        household.id,
-        budget.start_date,
-        budget.end_date,
-      )
+    ? await getTransactionsBetween(household.id, budget.start_date, budget.end_date)
     : [];
   const reservations = budget ? await getActiveReservations(budget.id) : [];
-  const engineTransactions = toEngineTransactions(
-    periodTransactions,
-    categories,
-  );
+  const engineTransactions = toEngineTransactions(periodTransactions, categories);
 
   const summary = budget
     ? computeBudgetSummary({
@@ -89,13 +108,9 @@ export default async function DashboardPage() {
           startDate: budget.start_date,
           endDate: budget.end_date,
           spendingLimit:
-            budget.spending_limit === null
-              ? null
-              : toMinor(budget.spending_limit),
+            budget.spending_limit === null ? null : toMinor(budget.spending_limit),
           groceryLimit:
-            budget.grocery_limit === null
-              ? null
-              : toMinor(budget.grocery_limit),
+            budget.grocery_limit === null ? null : toMinor(budget.grocery_limit),
         },
         transactions: engineTransactions,
         reservations: toEngineReservations(reservations),
@@ -120,8 +135,7 @@ export default async function DashboardPage() {
       }).filter((r) => r.expenses > 0)
     : [];
   const nameOf = (id: string | null) =>
-    members.find((m) => m.user_id === id)?.display_name ??
-    t("common.unattributed");
+    members.find((m) => m.user_id === id)?.display_name ?? t("common.unattributed");
   const memberTotal = memberSpending.reduce((s, r) => s + r.expenses, 0);
 
   const writer = canWrite(role);
@@ -155,12 +169,63 @@ export default async function DashboardPage() {
       };
     });
 
-  const plannedTotalMinor = plannedLists.reduce((sum, list) => {
-    if (list.planned_budget !== null) return sum + toMinor(list.planned_budget);
-    if (list.estimated_total !== null)
-      return sum + toMinor(list.estimated_total);
-    return sum;
-  }, 0);
+  const expenseRows = chartTransactions
+    .filter((tx) => tx.type === "expense")
+    .map((tx) => ({ occurredOn: tx.occurred_on, amount: toMinor(tx.amount) }));
+
+  const seriesByRange = {
+    "7d": buildEvolutionSeries({
+      today,
+      range: "7d",
+      expenses: expenseRows,
+      budgetLimit: summary?.spendingLimit ?? null,
+    }),
+    "30d": buildEvolutionSeries({
+      today,
+      range: "30d",
+      expenses: expenseRows,
+      budgetLimit: summary?.spendingLimit ?? null,
+    }),
+    "3m": buildEvolutionSeries({
+      today,
+      range: "3m",
+      expenses: expenseRows,
+      budgetLimit: summary?.spendingLimit ?? null,
+    }),
+    "12m": buildEvolutionSeries({
+      today,
+      range: "12m",
+      expenses: expenseRows,
+      budgetLimit: summary?.spendingLimit ?? null,
+    }),
+  } satisfies Record<EvolutionRange, ReturnType<typeof buildEvolutionSeries>>;
+
+  const categoryTotals = new Map<string, number>();
+  for (const tx of periodTransactions) {
+    if (tx.type !== "expense") continue;
+    const key = tx.category_id ?? "__none__";
+    categoryTotals.set(key, (categoryTotals.get(key) ?? 0) + toMinor(tx.amount));
+  }
+  const categorySlices = buildCategorySlices(
+    [...categoryTotals.entries()].map(([id, amount]) => {
+      if (id === "__none__") {
+        return { id, label: t("common.expense"), amount };
+      }
+      const cat = categories.find((c) => c.id === id);
+      return {
+        id,
+        label: cat ? categoryLabel(t, cat) : t("common.expense"),
+        amount,
+      };
+    }),
+  );
+
+  const remaining = summary?.remaining ?? null;
+  const spendingLimit = summary?.spendingLimit ?? null;
+  const remainingPct =
+    spendingLimit !== null && spendingLimit > 0 && remaining !== null
+      ? Math.round(Math.min(100, Math.max(0, (Math.max(remaining, 0) / spendingLimit) * 100)))
+      : null;
 
   const todayTone =
     summary?.todayRemaining === null || summary?.todayRemaining === undefined
@@ -173,56 +238,91 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <PageHeader
-        title={t("dashboard.greeting", { name: ctx.displayName })}
-        subtitle={
-          budget
-            ? `${household.name} · ${t("dashboard.period", {
-                start: formatDate(budget.start_date, locale),
-                end: formatDate(budget.end_date, locale),
-              })}`
-            : household.name
-        }
-        action={
-          writer ? (
-            <AddTransactionButton
-              label={t("dashboard.addTransaction")}
-              {...formProps}
-            />
-          ) : undefined
-        }
-      />
-
-      <div className="flex flex-col gap-8">
-        {/* Financial overview — available is primary */}
-        <Section>
-          <Card className="!p-5 sm:!p-6">
-            <div className="grid gap-6 sm:grid-cols-[1.4fr_1fr_1fr] sm:items-end">
-              <Stat
-                label={t("dashboard.available")}
-                value={money(balance.available)}
-                hint={t("dashboard.availableHint")}
-                tone={balance.available < 0 ? "danger" : "default"}
-                size="lg"
-              />
-              <Stat
-                label={t("dashboard.monthExpenses")}
-                value={money(summary?.expenses ?? 0)}
-                size="md"
-              />
-              <Stat
-                label={t("dashboard.safeDaily")}
-                value={
-                  summary?.dailyAllowance === null ||
-                  summary?.dailyAllowance === undefined
-                    ? "—"
-                    : money(summary.dailyAllowance)
-                }
-                size="md"
-              />
+      <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-semibold tracking-tight text-fg sm:text-[1.75rem]">
+            {t("dashboard.greeting", { name: ctx.displayName })}
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-muted">{t("dashboard.subtitle")}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-surface px-3 text-sm font-medium shadow-sm">
+            <CalendarDays size={16} className="text-muted" aria-hidden />
+            <span className="capitalize">{formatMonthLabel(month, locale)}</span>
+            <ChevronDown size={14} className="text-muted" aria-hidden />
+          </div>
+          <details className="relative">
+            <summary
+              className="inline-flex size-10 list-none items-center justify-center rounded-full border border-border bg-surface text-muted shadow-sm marker:content-none [&::-webkit-details-marker]:hidden"
+              aria-label={t("dashboard.notifications")}
+            >
+              <Bell size={18} aria-hidden />
+            </summary>
+            <div className="absolute right-0 z-20 mt-2 w-56 rounded-[var(--radius-md)] border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-card)]">
+              {t("dashboard.notificationsEmpty")}
             </div>
-          </Card>
-        </Section>
+          </details>
+          <span
+            className="inline-flex size-10 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-fg"
+            title={ctx.displayName}
+          >
+            {avatarLetter(ctx.displayName)}
+          </span>
+          {writer ? (
+            <AddTransactionButton label={t("dashboard.addTransaction")} {...formProps} />
+          ) : null}
+        </div>
+      </header>
+
+      <div className="flex flex-col gap-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryCard
+            tone="green"
+            icon={<Wallet size={18} aria-hidden />}
+            label={t("dashboard.available")}
+            value={money(balance.available)}
+            hint={t("dashboard.availableHint")}
+          />
+          <SummaryCard
+            tone="blue"
+            icon={<ShoppingBasket size={18} aria-hidden />}
+            label={t("dashboard.monthExpenses")}
+            value={money(summary?.expenses ?? 0)}
+          />
+          <SummaryCard
+            tone="purple"
+            icon={<Target size={18} aria-hidden />}
+            label={t("dashboard.paidFromBudget")}
+            value={
+              summary?.dailyAllowance === null || summary?.dailyAllowance === undefined
+                ? "—"
+                : money(summary.dailyAllowance)
+            }
+            hint={
+              tomorrow?.tomorrowAllowance !== null && tomorrow?.tomorrowAllowance !== undefined
+                ? t("dashboard.tomorrowAllowance") + ": " + money(tomorrow.tomorrowAllowance)
+                : undefined
+            }
+          />
+          <SummaryCard
+            tone="orange"
+            icon={<Target size={18} aria-hidden />}
+            label={t("dashboard.remainingToSpend")}
+            value={
+              remaining === null ? "—" : money(Math.max(remaining, 0))
+            }
+            hint={
+              spendingLimit === null
+                ? t("dashboard.noLimitBody")
+                : t("dashboard.remainingOf", { total: money(spendingLimit) })
+            }
+            trailing={
+              remainingPct === null ? undefined : (
+                <ProgressRing value={Math.max(remaining ?? 0, 0)} max={spendingLimit ?? 1} label={`${remainingPct}%`} />
+              )
+            }
+          />
+        </div>
 
         {summary === null ? (
           <Card>
@@ -231,453 +331,355 @@ export default async function DashboardPage() {
               body={t("dashboard.noBudgetBody")}
               action={
                 admin ? (
-                  <Link
-                    href="/settings#budget"
-                    className={buttonClass("secondary")}
-                  >
+                  <Link href="/settings#budget" className={buttonClass("secondary")}>
                     {t("settings.budgetCreate")}
                   </Link>
                 ) : undefined
               }
             />
           </Card>
-        ) : (
-          <>
-            {/* Spending pace */}
-            <Section title={t("dashboard.spendingPace")}>
-              <Card>
-                {summary.dailyAllowance === null ||
-                summary.todayRemaining === null ? (
-                  <EmptyState
-                    title={t("dashboard.noLimitTitle")}
-                    body={t("dashboard.noLimitBody")}
-                    action={
-                      admin ? (
-                        <Link
-                          href="/settings#budget"
-                          className={buttonClass("secondary")}
-                        >
-                          {t("dashboard.setLimit")}
-                        </Link>
-                      ) : undefined
-                    }
-                  />
-                ) : (
-                  <div className="grid gap-5 sm:grid-cols-2">
-                    <div>
-                      <Stat
-                        label={t("common.today")}
-                        value={money(summary.dailyAllowance)}
-                        hint={t("dashboard.allowanceHint", {
-                          // Morning pool: remaining still includes today's spend, so add it back.
-                          amount: money(
-                            Math.max((summary.remaining ?? 0) + summary.todaySpent, 0),
-                          ),
-                          days: t("common.days", { count: summary.daysLeft }),
-                        })}
-                      />
-                      <p className="mt-3 text-sm text-muted">
-                        {t("dashboard.todaySpent", { amount: money(summary.todaySpent) })}
-                      </p>
-                      <p
-                        className={`mt-1 text-sm ${
-                          todayTone === "danger"
-                            ? "text-danger"
-                            : todayTone === "warn"
-                              ? "text-warn"
-                              : "text-muted"
-                        }`}
-                      >
-                        {summary.todayRemaining < 0
-                          ? t("dashboard.todayOver", {
-                              amount: money(-summary.todayRemaining),
-                            })
-                          : summary.todayRemaining === 0
-                            ? t("dashboard.todayOnPace")
-                            : t("dashboard.todayLeft", {
-                                amount: money(summary.todayRemaining),
-                              })}
-                      </p>
-                      <p className="mt-1 text-xs text-muted">
-                        {t("dashboard.daysLeft", {
-                          days: t("common.days", { count: summary.daysLeft }),
-                        })}
-                      </p>
-                      {summary.reservedTotal > 0 ? (
-                        <p className="mt-2 text-xs text-muted">
-                          {t("dashboard.allowanceReserved", {
-                            amount: money(summary.reservedTotal),
-                          })}
-                        </p>
-                      ) : null}
-                    </div>
+        ) : null}
 
-                    <div className="border-t border-border pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-                      {tomorrow?.tomorrowAllowance !== null &&
-                      tomorrow?.tomorrowAllowance !== undefined ? (
-                        <>
-                          <Stat
-                            label={t("dashboard.tomorrowAllowance")}
-                            value={money(tomorrow.tomorrowAllowance)}
-                            tone={tomorrow.overBudget ? "danger" : "default"}
-                            hint={
-                              tomorrow.remainingAfterToday !== null
-                                ? t("dashboard.tomorrowHint", {
-                                    amount: money(
-                                      Math.max(tomorrow.remainingAfterToday, 0),
-                                    ),
-                                    days: t("common.days", {
-                                      count: tomorrow.daysFromTomorrow,
-                                    }),
-                                  })
-                                : undefined
-                            }
-                          />
-                          {tomorrow.overBudget ? (
-                            <p className="mt-2 text-sm text-danger">
-                              {t("dashboard.tomorrowOverBudget")}
-                            </p>
-                          ) : tomorrow.allowanceDelta !== null ? (
-                            <p className="mt-2 text-sm text-muted">
-                              {tomorrow.allowanceDelta > 0
-                                ? t("dashboard.allowanceDeltaUp", {
-                                    amount: money(tomorrow.allowanceDelta),
-                                  })
-                                : tomorrow.allowanceDelta < 0
-                                  ? t("dashboard.allowanceDeltaDown", {
-                                      amount: money(-tomorrow.allowanceDelta),
-                                    })
-                                  : t("dashboard.allowanceDeltaSame")}
-                            </p>
-                          ) : null}
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted">
-                          {t("dashboard.daysLeft", {
-                            days: t("common.days", { count: 1 }),
-                          })}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </Card>
-            </Section>
+        <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+          <BudgetEvolutionChart seriesByRange={seriesByRange} formatAmount={money} />
+          <CategoryDonut
+            title={t("dashboard.categories")}
+            detailsLabel={t("dashboard.categoriesDetails")}
+            emptyTitle={t("dashboard.categoriesEmpty")}
+            slices={categorySlices}
+            centerLabel={t("dashboard.monthExpenses")}
+            totalLabel={money(summary?.expenses ?? 0)}
+          />
+        </div>
 
-            {/* Budget progress */}
-            <Section title={t("dashboard.budgetProgress")}>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Card>
-                  <CardTitle>{t("dashboard.budgetRemaining")}</CardTitle>
-                  {summary.spendingLimit === null ||
-                  summary.remaining === null ? (
-                    <p className="text-sm text-muted">
-                      {t("dashboard.noLimitBody")}
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      <Stat
-                        label={t("dashboard.of", {
-                          total: money(summary.spendingLimit),
-                        })}
-                        value={money(Math.max(summary.remaining, 0))}
-                        tone={summary.remaining < 0 ? "danger" : "default"}
-                        hint={
-                          summary.remaining < 0
-                            ? t("dashboard.overBudget", {
-                                amount: money(-summary.remaining),
-                              })
-                            : undefined
-                        }
-                      />
-                      <ProgressBar
-                        value={summary.committed}
-                        max={summary.spendingLimit}
-                      />
-                    </div>
-                  )}
-                </Card>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <section className="rounded-[var(--radius-lg)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] sm:p-5 lg:col-span-1">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-fg">{t("dashboard.recent")}</h2>
+              <Link
+                href="/transactions"
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand-strong hover:underline"
+              >
+                {t("dashboard.viewAll")} <ArrowRight size={12} aria-hidden />
+              </Link>
+            </div>
+            {recent.length === 0 ? (
+              <EmptyState
+                compact
+                title={t("dashboard.recentEmptyTitle")}
+                body={t("dashboard.recentEmptyBody")}
+                action={
+                  writer ? (
+                    <AddTransactionButton label={t("dashboard.addTransaction")} {...formProps} />
+                  ) : undefined
+                }
+              />
+            ) : (
+              <TransactionList
+                householdId={household.id}
+                currency={household.currency}
+                categories={categories}
+                members={members}
+                currentUserId={ctx.user.id}
+                today={today}
+                grouped={false}
+                transactions={recent.map((tx) => ({
+                  ...tx,
+                  editable: admin || (writer && tx.created_by === ctx.user.id),
+                }))}
+              />
+            )}
+          </section>
 
-                <Card>
-                  <CardTitle>{t("dashboard.grocery")}</CardTitle>
-                  <div className="space-y-3">
-                    <Stat
-                      label={
-                        summary.groceryLimit === null
-                          ? t("dashboard.groceryNoLimit")
-                          : t("dashboard.groceryLimit", {
-                              spent: money(summary.groceryExpenses),
-                              limit: money(summary.groceryLimit),
-                            })
-                      }
-                      value={money(summary.groceryExpenses)}
-                      hint={
-                        summary.groceryRemaining !== null
-                          ? t("dashboard.groceryRemaining", {
-                              amount: money(summary.groceryRemaining),
-                            })
-                          : undefined
-                      }
-                      tone={
-                        summary.groceryRemaining !== null &&
-                        summary.groceryRemaining < 0
-                          ? "danger"
-                          : "default"
-                      }
-                    />
-                    {summary.groceryLimit !== null ? (
-                      <ProgressBar
-                        value={
-                          summary.groceryExpenses + summary.reservedGrocery
-                        }
-                        max={summary.groceryLimit}
-                      />
-                    ) : null}
-                    {summary.reservedGrocery > 0 ? (
-                      <p className="text-xs text-muted">
-                        {t("dashboard.groceryReserved", {
-                          amount: money(summary.reservedGrocery),
-                        })}
-                      </p>
-                    ) : null}
-                  </div>
-                </Card>
-              </div>
-            </Section>
-          </>
-        )}
+          <section className="rounded-[var(--radius-lg)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] sm:p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-fg">{t("dashboard.quickLists")}</h2>
+              <Link
+                href="/shopping-lists"
+                className="inline-flex items-center gap-1 text-xs font-medium text-brand-strong hover:underline"
+              >
+                {t("dashboard.viewAll")} <ArrowRight size={12} aria-hidden />
+              </Link>
+            </div>
+            {plannedLists.length === 0 ? (
+              <EmptyState compact title={t("dashboard.quickListsEmpty")} />
+            ) : (
+              <ul className="space-y-2">
+                {plannedLists.map((list) => (
+                  <li key={list.id}>
+                    <Link
+                      href={`/shopping-lists/${list.id}`}
+                      className="flex min-h-10 items-center gap-3 rounded-[var(--radius-md)] px-1 py-1.5 hover:bg-surface-2"
+                    >
+                      <span className="size-5 shrink-0 rounded-full border-2 border-border" aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{list.name}</span>
+                        <span className="text-xs text-muted">
+                          {list.checked_count}/{list.item_count}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {writer ? (
+              <Link
+                href="/shopping-lists"
+                className={buttonClass("primary", "mt-4 w-full justify-center")}
+              >
+                + {t("dashboard.addToList")}
+              </Link>
+            ) : null}
+          </section>
 
-        {/* Upcoming purchases — planned vs reserved */}
-        <Section
-          title={t("dashboard.upcoming")}
-          action={
-            <Link
-              href="/shopping-lists"
-              className="text-sm font-medium text-brand-strong hover:underline"
-            >
-              {t("dashboard.viewAll")}
-            </Link>
-          }
-        >
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Card>
-              <CardTitle>{t("dashboard.planned")}</CardTitle>
-              <p className="mb-3 text-xs text-muted">
-                {t("dashboard.plannedHint")}
-              </p>
-              {plannedLists.length === 0 ? (
-                <EmptyState
-                  compact
-                  title={t("dashboard.upcomingEmptyTitle")}
-                  body={t("dashboard.upcomingEmptyBody")}
-                />
-              ) : (
-                <ul className="space-y-2">
-                  {plannedLists.map((list) => {
-                    const amount =
-                      list.planned_budget !== null
-                        ? money(toMinor(list.planned_budget))
-                        : list.estimated_total !== null
-                          ? money(toMinor(list.estimated_total))
-                          : null;
-                    return (
-                      <li key={list.id}>
-                        <Link
-                          href={`/shopping-lists/${list.id}`}
-                          className="flex min-h-10 items-center justify-between gap-3 rounded-[var(--radius-md)] px-1 py-1.5 hover:bg-surface-2"
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium">
-                              {list.name}
-                            </span>
-                            <span className="text-xs text-muted">
-                              {list.checked_count}/{list.item_count} ·{" "}
-                              {list.scope === "shared"
-                                ? t("common.shared")
-                                : t("common.individual")}
-                            </span>
-                          </span>
-                          {amount ? (
-                            <span className="tabular shrink-0 text-sm font-medium">
-                              {amount}
-                            </span>
-                          ) : null}
-                        </Link>
-                      </li>
-                    );
-                  })}
-                  {plannedTotalMinor > 0 ? (
-                    <li className="border-t border-border pt-2 text-xs text-muted">
-                      {t("dashboard.of", { total: money(plannedTotalMinor) })}
-                    </li>
-                  ) : null}
-                </ul>
-              )}
-            </Card>
+          <RecipePromo
+            title={t("dashboard.recipePromoTitle")}
+            body={t("dashboard.recipePromoBody")}
+            cta={t("dashboard.recipePromoCta")}
+          />
+        </div>
 
-            <Card>
-              <CardTitle>{t("dashboard.reserved")}</CardTitle>
-              <p className="mb-3 text-xs text-muted">
-                {t("dashboard.reservedHint")}
-              </p>
-              {summary && summary.reservedTotal > 0 ? (
-                <Stat
-                  label={t("dashboard.reservedHint")}
-                  value={money(summary.reservedTotal)}
-                />
-              ) : (
-                <EmptyState compact title={t("dashboard.reservedEmpty")} />
-              )}
-            </Card>
-          </div>
-        </Section>
-
-        {/* Member spending */}
         {summary ? (
-          <Section title={t("dashboard.byMember")}>
+          <Section title={t("dashboard.spendingPace")}>
             <Card>
-              {memberSpending.length === 0 ? (
-                <EmptyState compact title={t("dashboard.byMemberEmpty")} />
+              {summary.dailyAllowance === null || summary.todayRemaining === null ? (
+                <EmptyState
+                  title={t("dashboard.noLimitTitle")}
+                  body={t("dashboard.noLimitBody")}
+                  action={
+                    admin ? (
+                      <Link href="/settings#budget" className={buttonClass("secondary")}>
+                        {t("dashboard.setLimit")}
+                      </Link>
+                    ) : undefined
+                  }
+                />
               ) : (
-                <ul className="space-y-3">
-                  {memberSpending
-                    .sort((a, b) => b.expenses - a.expenses)
-                    .map((row) => (
-                      <li key={row.userId ?? "none"} className="space-y-1.5">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <p className="truncate text-sm font-medium">
-                            {nameOf(row.userId)}
-                          </p>
-                          <p className="tabular text-sm font-semibold">
-                            {money(row.expenses)}
-                          </p>
-                        </div>
-                        <ProgressBar
-                          value={row.expenses}
-                          max={memberTotal}
-                          tone="brand"
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <div>
+                    <Stat
+                      label={t("common.today")}
+                      value={money(summary.dailyAllowance)}
+                      hint={t("dashboard.allowanceHint", {
+                        amount: money(
+                          Math.max((summary.remaining ?? 0) + summary.todaySpent, 0),
+                        ),
+                        days: t("common.days", { count: summary.daysLeft }),
+                      })}
+                    />
+                    <p className="mt-3 text-sm text-muted">
+                      {t("dashboard.todaySpent", { amount: money(summary.todaySpent) })}
+                    </p>
+                    <p
+                      className={`mt-1 text-sm ${
+                        todayTone === "danger"
+                          ? "text-danger"
+                          : todayTone === "warn"
+                            ? "text-warn"
+                            : "text-muted"
+                      }`}
+                    >
+                      {summary.todayRemaining < 0
+                        ? t("dashboard.todayOver", { amount: money(-summary.todayRemaining) })
+                        : summary.todayRemaining === 0
+                          ? t("dashboard.todayOnPace")
+                          : t("dashboard.todayLeft", { amount: money(summary.todayRemaining) })}
+                    </p>
+                    {summary.reservedTotal > 0 ? (
+                      <p className="mt-2 text-xs text-muted">
+                        {t("dashboard.allowanceReserved", {
+                          amount: money(summary.reservedTotal),
+                        })}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="border-t border-border pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+                    {tomorrow?.tomorrowAllowance !== null &&
+                    tomorrow?.tomorrowAllowance !== undefined ? (
+                      <>
+                        <Stat
+                          label={t("dashboard.tomorrowAllowance")}
+                          value={money(tomorrow.tomorrowAllowance)}
+                          tone={tomorrow.overBudget ? "danger" : "default"}
+                          hint={
+                            tomorrow.remainingAfterToday !== null
+                              ? t("dashboard.tomorrowHint", {
+                                  amount: money(Math.max(tomorrow.remainingAfterToday, 0)),
+                                  days: t("common.days", {
+                                    count: tomorrow.daysFromTomorrow,
+                                  }),
+                                })
+                              : undefined
+                          }
                         />
-                        <p className="text-xs text-muted">
-                          {t("dashboard.sharedVsIndividual", {
-                            shared: money(row.sharedExpenses),
-                            individual: money(row.individualExpenses),
-                          })}
-                        </p>
-                      </li>
-                    ))}
-                </ul>
+                        {tomorrow.overBudget ? (
+                          <p className="mt-2 text-sm text-danger">
+                            {t("dashboard.tomorrowOverBudget")}
+                          </p>
+                        ) : tomorrow.allowanceDelta !== null ? (
+                          <p className="mt-2 text-sm text-muted">
+                            {tomorrow.allowanceDelta > 0
+                              ? t("dashboard.allowanceDeltaUp", {
+                                  amount: money(tomorrow.allowanceDelta),
+                                })
+                              : tomorrow.allowanceDelta < 0
+                                ? t("dashboard.allowanceDeltaDown", {
+                                    amount: money(-tomorrow.allowanceDelta),
+                                  })
+                                : t("dashboard.allowanceDeltaSame")}
+                          </p>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted">
+                        {t("dashboard.daysLeft", {
+                          days: t("common.days", { count: 1 }),
+                        })}
+                      </p>
+                    )}
+                  </div>
+                </div>
               )}
             </Card>
           </Section>
         ) : null}
 
-        {/* Savings — compact */}
-        <Section
-          title={t("dashboard.savings")}
-          action={
-            writer ? (
-              <Link
-                href="/settings#goals"
-                className="text-sm font-medium text-brand-strong hover:underline"
-              >
-                {t("settings.goalCreate")}
-              </Link>
-            ) : undefined
-          }
-        >
-          <Card>
-            {goals.length === 0 ? (
-              <EmptyState
-                compact
-                title={t("dashboard.savingsEmptyTitle")}
-                body={t("dashboard.savingsEmptyBody")}
-              />
-            ) : (
-              <ul className="space-y-4">
-                {goals.slice(0, 3).map(({ goal, projection }) => (
-                  <li key={goal.id} className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-sm font-medium">
-                        {goal.name}
-                      </p>
-                      <Badge
-                        tone={
-                          projection.status === "completed" ||
-                          projection.status === "on_track"
-                            ? "ok"
-                            : projection.status === "behind" ||
-                                projection.status === "stalled"
-                              ? "warn"
-                              : "default"
-                        }
-                      >
-                        {t(`savings.status.${projection.status}`)}
-                      </Badge>
-                    </div>
+        {summary ? (
+          <Section title={t("dashboard.budgetProgress")}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Card>
+                <CardTitle>{t("dashboard.grocery")}</CardTitle>
+                <div className="space-y-3">
+                  <Stat
+                    label={
+                      summary.groceryLimit === null
+                        ? t("dashboard.groceryNoLimit")
+                        : t("dashboard.groceryLimit", {
+                            spent: money(summary.groceryExpenses),
+                            limit: money(summary.groceryLimit),
+                          })
+                    }
+                    value={money(summary.groceryExpenses)}
+                    hint={
+                      summary.groceryRemaining !== null
+                        ? t("dashboard.groceryRemaining", {
+                            amount: money(summary.groceryRemaining),
+                          })
+                        : undefined
+                    }
+                    tone={
+                      summary.groceryRemaining !== null && summary.groceryRemaining < 0
+                        ? "danger"
+                        : "default"
+                    }
+                  />
+                  {summary.groceryLimit !== null ? (
                     <ProgressBar
-                      value={projection.current}
-                      max={projection.target}
-                      tone="brand"
+                      value={summary.groceryExpenses + summary.reservedGrocery}
+                      max={summary.groceryLimit}
                     />
-                    <p className="tabular text-xs text-muted">
-                      {t("dashboard.savingsProgress", {
-                        current: money(projection.current),
-                        target: money(projection.target),
-                      })}
-                      {goal.scope === "individual"
-                        ? ` · ${nameOf(goal.owner_id)}`
-                        : ` · ${t("common.shared")}`}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </Section>
+                  ) : null}
+                </div>
+              </Card>
+              <Card>
+                <CardTitle>{t("dashboard.reserved")}</CardTitle>
+                {summary.reservedTotal > 0 ? (
+                  <Stat label={t("dashboard.reservedHint")} value={money(summary.reservedTotal)} />
+                ) : (
+                  <EmptyState compact title={t("dashboard.reservedEmpty")} />
+                )}
+              </Card>
+            </div>
+          </Section>
+        ) : null}
 
-        {/* Recent transactions */}
-        <Section
-          title={t("dashboard.recent")}
-          action={
-            <Link
-              href="/transactions"
-              className="inline-flex items-center gap-1 text-sm font-medium text-brand-strong hover:underline"
-            >
-              {t("dashboard.viewAll")} <ArrowRight size={14} aria-hidden />
-            </Link>
-          }
-        >
-          {recent.length === 0 ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {summary ? (
+            <Section title={t("dashboard.byMember")}>
+              <Card>
+                {memberSpending.length === 0 ? (
+                  <EmptyState compact title={t("dashboard.byMemberEmpty")} />
+                ) : (
+                  <ul className="space-y-3">
+                    {memberSpending
+                      .sort((a, b) => b.expenses - a.expenses)
+                      .map((row) => (
+                        <li key={row.userId ?? "none"} className="space-y-1.5">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className="truncate text-sm font-medium">{nameOf(row.userId)}</p>
+                            <p className="tabular text-sm font-semibold">{money(row.expenses)}</p>
+                          </div>
+                          <ProgressBar value={row.expenses} max={memberTotal} tone="brand" />
+                          <p className="text-xs text-muted">
+                            {t("dashboard.sharedVsIndividual", {
+                              shared: money(row.sharedExpenses),
+                              individual: money(row.individualExpenses),
+                            })}
+                          </p>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </Card>
+            </Section>
+          ) : null}
+
+          <Section
+            title={t("dashboard.savings")}
+            action={
+              writer ? (
+                <Link
+                  href="/settings#goals"
+                  className="text-sm font-medium text-brand-strong hover:underline"
+                >
+                  {t("settings.goalCreate")}
+                </Link>
+              ) : undefined
+            }
+          >
             <Card>
-              <EmptyState
-                title={t("dashboard.recentEmptyTitle")}
-                body={t("dashboard.recentEmptyBody")}
-                action={
-                  writer ? (
-                    <AddTransactionButton
-                      label={t("dashboard.addTransaction")}
-                      {...formProps}
-                    />
-                  ) : undefined
-                }
-              />
+              {goals.length === 0 ? (
+                <EmptyState
+                  compact
+                  title={t("dashboard.savingsEmptyTitle")}
+                  body={t("dashboard.savingsEmptyBody")}
+                />
+              ) : (
+                <ul className="space-y-4">
+                  {goals.slice(0, 3).map(({ goal, projection }) => (
+                    <li key={goal.id} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium">{goal.name}</p>
+                        <Badge
+                          tone={
+                            projection.status === "completed" || projection.status === "on_track"
+                              ? "ok"
+                              : projection.status === "behind" || projection.status === "stalled"
+                                ? "warn"
+                                : "default"
+                          }
+                        >
+                          {t(`savings.status.${projection.status}`)}
+                        </Badge>
+                      </div>
+                      <ProgressBar value={projection.current} max={projection.target} tone="brand" />
+                      <p className="tabular text-xs text-muted">
+                        {t("dashboard.savingsProgress", {
+                          current: money(projection.current),
+                          target: money(projection.target),
+                        })}
+                        {goal.scope === "individual"
+                          ? ` · ${nameOf(goal.owner_id)}`
+                          : ` · ${t("common.shared")}`}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Card>
-          ) : (
-            <TransactionList
-              householdId={household.id}
-              currency={household.currency}
-              categories={categories}
-              members={members}
-              currentUserId={ctx.user.id}
-              today={today}
-              grouped={false}
-              transactions={recent.map((tx) => ({
-                ...tx,
-                editable: admin || (writer && tx.created_by === ctx.user.id),
-              }))}
-            />
-          )}
-        </Section>
+          </Section>
+        </div>
       </div>
     </>
   );

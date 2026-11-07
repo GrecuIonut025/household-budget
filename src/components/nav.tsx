@@ -13,41 +13,83 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { t } = useI18n();
   return (
-    <nav aria-label={t("nav.primary")} className="flex flex-col gap-5">
-      {NAV_GROUPS.map((group) => (
-        <div key={group.id}>
-          <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted/80">
-            {t(group.label)}
-          </p>
-          <ul className="flex flex-col gap-0.5">
-            {group.items.map((item) => {
-              const active = isActive(pathname, item.href);
-              const Icon = item.icon;
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    className={clsx(
-                      "flex min-h-10 items-center gap-2.5 rounded-[var(--radius-md)] px-3 text-sm font-medium transition",
-                      active
-                        ? "bg-brand-soft text-brand-strong"
-                        : "text-muted hover:bg-surface-2 hover:text-fg",
-                    )}
-                  >
-                    <Icon
-                      size={17}
-                      aria-hidden
-                      strokeWidth={active ? 2.25 : 2}
-                    />
-                    {t(item.label)}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+    <nav aria-label={t("nav.primary")} className="flex flex-col gap-4">
+      {NAV_GROUPS.map((group) => {
+        const GroupIcon = group.icon;
+        const groupActive = group.href ? isActive(pathname, group.href) : false;
+
+        if (group.href && GroupIcon) {
+          return (
+            <div key={group.id}>
+              <Link
+                href={group.href}
+                aria-current={groupActive ? "page" : undefined}
+                className={clsx(
+                  "flex min-h-10 items-center gap-2.5 rounded-[var(--radius-md)] px-3 text-sm font-semibold transition",
+                  groupActive
+                    ? "bg-brand text-brand-fg"
+                    : "text-sidebar-fg/90 hover:bg-sidebar-hover hover:text-sidebar-fg",
+                )}
+              >
+                <GroupIcon size={17} aria-hidden strokeWidth={groupActive ? 2.25 : 2} />
+                {t("nav.dashboardHome")}
+              </Link>
+              <ul className="mt-1.5 flex flex-col gap-0.5 pl-2">
+                {group.items.map((item) => {
+                  const active = isActive(pathname, item.href);
+                  return (
+                    <li key={`${item.href}-${item.label}`}>
+                      <Link
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={clsx(
+                          "flex min-h-9 items-center rounded-full px-3 text-[13px] font-medium transition",
+                          active
+                            ? "bg-brand-soft text-brand-strong"
+                            : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-fg",
+                        )}
+                      >
+                        {t(item.label)}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        }
+
+        return (
+          <div key={group.id}>
+            <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted">
+              {t(group.label)}
+            </p>
+            <ul className="flex flex-col gap-0.5">
+              {group.items.map((item) => {
+                const active = isActive(pathname, item.href);
+                const Icon = item.icon;
+                return (
+                  <li key={`${item.href}-${item.label}`}>
+                    <Link
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={clsx(
+                        "flex min-h-10 items-center gap-2.5 rounded-[var(--radius-md)] px-3 text-sm font-medium transition",
+                        active
+                          ? "bg-brand-soft text-brand-strong"
+                          : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-fg",
+                      )}
+                    >
+                      <Icon size={17} aria-hidden strokeWidth={active ? 2.25 : 2} />
+                      {t(item.label)}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
     </nav>
   );
 }
@@ -56,7 +98,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
-  const primary = NAV_ITEMS.filter((i) => i.primary);
+  const primary = NAV_ITEMS.filter((i) => i.primary && !i.href.includes("#"));
   const secondary = NAV_ITEMS.filter((i) => !i.primary);
   const secondaryActive = secondary.some((i) => isActive(pathname, i.href));
 
@@ -97,11 +139,7 @@ export function BottomNav() {
           <span>{t("nav.more")}</span>
         </button>
       </nav>
-      <Sheet
-        open={moreOpen}
-        onClose={() => setMoreOpen(false)}
-        title={t("nav.more")}
-      >
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title={t("nav.more")}>
         <div className="grid gap-5">
           {NAV_GROUPS.map((group) => {
             const items = group.items.filter((i) => !i.primary);
@@ -116,23 +154,17 @@ export function BottomNav() {
                     const Icon = item.icon;
                     const active = isActive(pathname, item.href);
                     return (
-                      <li key={item.href}>
+                      <li key={`${item.href}-${item.label}`}>
                         <Link
                           href={item.href}
                           onClick={() => setMoreOpen(false)}
                           aria-current={active ? "page" : undefined}
                           className={clsx(
                             "flex min-h-12 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm font-medium",
-                            active
-                              ? "bg-brand-soft text-brand-strong"
-                              : "hover:bg-surface-2",
+                            active ? "bg-brand-soft text-brand-strong" : "hover:bg-surface-2",
                           )}
                         >
-                          <Icon
-                            size={18}
-                            aria-hidden
-                            className={active ? undefined : "text-muted"}
-                          />
+                          <Icon size={18} aria-hidden className={active ? undefined : "text-muted"} />
                           {t(item.label)}
                         </Link>
                       </li>

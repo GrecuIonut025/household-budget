@@ -6,7 +6,7 @@
 */
 
 :root {
-  --bg: #f5f6f8;
+  --bg: #f0f2f5;
   --surface: #ffffff;
   --surface-2: #eef0f3;
   --border: #e3e6eb;
@@ -22,10 +22,24 @@
   --warn-soft: #fef3d7;
   --ok: #0d7a4f;
   --ok-soft: #e3f6ed;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --sidebar: #0b1220;
+  --sidebar-fg: #f3f6fb;
+  --sidebar-muted: #93a0b5;
+  --sidebar-hover: #162033;
+  --sidebar-border: #1c2738;
+  --card-green: #ecf8f1;
+  --card-blue: #eef4fb;
+  --card-purple: #f3effa;
+  --card-orange: #fff4eb;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-orange: #f59e0b;
+  --chart-surface: #121a26;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --space-section: 1.5rem;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 10px 28px -14px rgb(15 23 42 / 0.14);
   color-scheme: light;
 }
 
@@ -46,6 +60,19 @@ html.dark {
   --warn-soft: #2c220f;
   --ok: #4ec995;
   --ok-soft: #0f2a1f;
+  --sidebar: #070b12;
+  --sidebar-fg: #f3f6fb;
+  --sidebar-muted: #8b98ad;
+  --sidebar-hover: #121926;
+  --sidebar-border: #1a2333;
+  --card-green: #10241c;
+  --card-blue: #121f30;
+  --card-purple: #1c1730;
+  --card-orange: #2a1c10;
+  --accent-blue: #60a5fa;
+  --accent-purple: #a78bfa;
+  --accent-orange: #fbbf24;
+  --chart-surface: #0e141d;
   color-scheme: dark;
 }
 
@@ -66,11 +93,25 @@ html.dark {
   --color-warn-soft: var(--warn-soft);
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-fg: var(--sidebar-fg);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-card-green: var(--card-green);
+  --color-card-blue: var(--card-blue);
+  --color-card-purple: var(--card-purple);
+  --color-card-orange: var(--card-orange);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-orange: var(--accent-orange);
+  --color-chart-surface: var(--chart-surface);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
+  --shadow-card: var(--shadow-card);
 }
 
 html {

@@ -23,8 +23,8 @@ describe("i18n", () => {
   });
 
   it("interpolates parameters", () => {
-    expect(createTranslator("en")("dashboard.greeting", { name: "Ana" })).toBe("Hi, Ana");
-    expect(createTranslator("ro")("dashboard.greeting", { name: "Ana" })).toBe("Salut, Ana");
+    expect(createTranslator("en")("dashboard.greeting", { name: "Ana" })).toBe("Hi, Ana!");
+    expect(createTranslator("ro")("dashboard.greeting", { name: "Ana" })).toBe("Salut, Ana!");
   });
 
   it("handles plural categories per locale", () => {
