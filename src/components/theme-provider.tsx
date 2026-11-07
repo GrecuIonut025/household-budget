@@ -4,15 +4,21 @@ import {
   createContext,
   useCallback,
   useContext,
+  useLayoutEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import {
+  parseThemePreference,
+  themeHtmlClass,
+  THEME_COOKIE,
+  THEME_STORAGE_KEY,
+  type ResolvedTheme,
+  type ThemePreference,
+} from "@/lib/theme";
 
-export type ThemePreference = "light" | "dark" | "system";
-export type ResolvedTheme = "light" | "dark";
-
-const STORAGE_KEY = "hb-theme";
+export type { ThemePreference, ResolvedTheme };
 
 interface ThemeContextValue {
   preference: ThemePreference;
@@ -25,12 +31,18 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function readStored(): ThemePreference {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw === "light" || raw === "dark" || raw === "system") return raw;
+    return parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY));
+  } catch {
+    return "system";
+  }
+}
+
+function writeCookie(value: ThemePreference) {
+  try {
+    document.cookie = `${THEME_COOKIE}=${value}; path=/; max-age=31536000; samesite=lax`;
   } catch {
     /* ignore */
   }
-  return "system";
 }
 
 function systemDark(): boolean {
@@ -42,19 +54,14 @@ export function resolveTheme(preference: ThemePreference): ResolvedTheme {
   return preference;
 }
 
-export function applyThemeClass(resolved: ResolvedTheme) {
+/** Apply forced light/dark classes; system clears both and lets CSS media decide. */
+export function applyThemePreference(preference: ThemePreference) {
   const root = document.documentElement;
-  root.classList.toggle("dark", resolved === "dark");
-  root.style.colorScheme = resolved;
+  const forced = themeHtmlClass(preference);
+  root.classList.toggle("light", forced === "light");
+  root.classList.toggle("dark", forced === "dark");
+  root.style.colorScheme = resolveTheme(preference);
 }
-
-/**
- * Inline boot script for the root layout `<head>`.
- * Keep this as a plain string for `dangerouslySetInnerHTML` — do not load it
- * through `next/script` (React 19 logs a console error for client-rendered
- * `<script>` tags and they never execute on the client).
- */
-export const THEME_BOOT_SCRIPT = `(function(){try{var k=${JSON.stringify(STORAGE_KEY)};var t=localStorage.getItem(k);var d=t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;r.classList.toggle("dark",d);r.style.colorScheme=d?"dark":"light";}catch(e){}})();`;
 
 type StoreListener = () => void;
 const listeners = new Set<StoreListener>();
@@ -68,13 +75,13 @@ function subscribe(listener: StoreListener) {
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
   const onScheme = () => {
     if (readStored() === "system") {
-      applyThemeClass(resolveTheme("system"));
+      applyThemePreference("system");
       emit();
     }
   };
   mq.addEventListener("change", onScheme);
   const onStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY) emit();
+    if (e.key === THEME_STORAGE_KEY) emit();
   };
   window.addEventListener("storage", onStorage);
   return () => {
@@ -101,16 +108,32 @@ function getResolvedServerSnapshot(): ResolvedTheme {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const preference = useSyncExternalStore(subscribe, getPreferenceSnapshot, getPreferenceServerSnapshot);
-  const resolved = useSyncExternalStore(subscribe, getResolvedSnapshot, getResolvedServerSnapshot);
+  const preference = useSyncExternalStore(
+    subscribe,
+    getPreferenceSnapshot,
+    getPreferenceServerSnapshot,
+  );
+  const resolved = useSyncExternalStore(
+    subscribe,
+    getResolvedSnapshot,
+    getResolvedServerSnapshot,
+  );
+
+  // Sync localStorage → cookie + html class after hydration (migrates pre-cookie prefs).
+  useLayoutEffect(() => {
+    const stored = readStored();
+    writeCookie(stored);
+    applyThemePreference(stored);
+  }, []);
 
   const setPreference = useCallback((value: ThemePreference) => {
     try {
-      localStorage.setItem(STORAGE_KEY, value);
+      localStorage.setItem(THEME_STORAGE_KEY, value);
     } catch {
       /* ignore */
     }
-    applyThemeClass(resolveTheme(value));
+    writeCookie(value);
+    applyThemePreference(value);
     emit();
   }, []);
 

@@ -25,11 +25,11 @@ Defined as CSS variables in `src/app/globals.css`, exposed to Tailwind via `@the
 | `--ok*` / `--warn*` / `--danger*` | Financial status only |
 | `--radius-sm/md/lg` | 6 / 10 / 14 px |
 
-Light is the default on `:root`. Dark overrides live under `html.dark`.
+Light is the default on `:root`. Forced dark uses `html.dark`; forced light uses `html.light`. With neither class, `@media (prefers-color-scheme: dark)` applies dark tokens (system).
 
 ## Theme
 
-`ThemeProvider` (`src/components/theme-provider.tsx`) stores `light | dark | system` in `localStorage` (`hb-theme`). Default is **system** (`prefers-color-scheme`). An inline boot script in the root layout applies the class before paint to avoid a flash. Toggle: header (compact) and Household → Appearance.
+`ThemeProvider` stores `light | dark | system` in `localStorage` and a matching `hb-theme` cookie. The root layout reads the cookie and sets `html.light` / `html.dark` on the server (no boot `<script>` — React 19 warns on client-rendered scripts). System preference relies on CSS media queries. Toggle: sidebar/header (compact) and Household → Appearance.
 
 ## Typography & spacing
 
