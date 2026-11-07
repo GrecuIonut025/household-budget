@@ -88,7 +88,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
           />
         </Card>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+        <ul className="divide-y divide-border overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface">
           {products.map((p) => {
             const size = p.package_size && p.package_unit ? `${p.package_size} ${t(`products.unit.${p.package_unit}`)}` : null;
             const subtitle = [p.brand, size].filter(Boolean).join(" · ");

@@ -64,7 +64,7 @@ export default async function RecipePage({ params }: { params: Promise<Params> }
         {t("nav.recipes")}
       </Link>
 
-      <div className="relative overflow-hidden rounded-3xl border border-border bg-surface shadow-card">
+      <div className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface">
         <div className="relative aspect-[16/9] w-full bg-gradient-to-br from-brand-soft to-surface-2 sm:aspect-[21/9]">
           {imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

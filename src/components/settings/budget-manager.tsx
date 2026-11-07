@@ -76,7 +76,7 @@ export function BudgetManager({
         {budgets.map((b) => {
           const current = b.is_active && b.start_date <= today && b.end_date >= today;
           return (
-            <li key={b.id} className="flex items-center gap-3 rounded-xl border border-border p-3">
+            <li key={b.id} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border p-3">
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2 truncate text-sm font-medium">
                   {b.name}

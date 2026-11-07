@@ -182,7 +182,7 @@ export default async function RankingsPage() {
                       {t("products.purchases", { count: m.purchaseCount })} · {money(m.totalSpent)}
                     </span>
                   </p>
-                  <ol className="divide-y divide-border rounded-xl bg-surface-2 px-3">
+                  <ol className="divide-y divide-border rounded-[var(--radius-md)] bg-surface-2 px-3">
                     {m.top.map((p) => (
                       <li key={p.productId} className={row}>
                         {link(p.productId)}

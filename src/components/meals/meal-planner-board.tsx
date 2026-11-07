@@ -51,14 +51,14 @@ export function MealPlannerBoard({
     <>
       <div className="space-y-4">
         {days.map((day) => (
-          <section key={day} className="rounded-2xl border border-border bg-surface p-3 shadow-card sm:p-4">
+          <section key={day} className="rounded-[var(--radius-lg)] border border-border bg-surface p-3 sm:p-4">
             <h2 className="mb-3 text-sm font-semibold tracking-tight">{formatDate(day, locale, { weekday: "long", day: "numeric", month: "short" })}</h2>
             <div className="grid gap-2 sm:grid-cols-2">
               {MEAL_TYPES.map((mealType) => {
                 const key = `${day}:${mealType}`;
                 const slotMeals = bySlot.get(key) ?? [];
                 return (
-                  <div key={mealType} className="rounded-xl bg-surface-2/70 p-2.5">
+                  <div key={mealType} className="rounded-[var(--radius-md)] bg-surface-2/70 p-2.5">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted">{t(MEAL_LABEL[mealType])}</p>
                       {canWrite ? (

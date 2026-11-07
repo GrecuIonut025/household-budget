@@ -5,8 +5,8 @@ export function ProductThumb({ url, size = "md" }: { url?: string | null; size?:
   return (
     <span
       className={clsx(
-        "grid shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-2 text-muted",
-        size === "md" ? "size-14" : "size-24 rounded-2xl",
+        "grid shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] bg-surface-2 text-muted",
+        size === "md" ? "size-14" : "size-24 rounded-[var(--radius-lg)]",
       )}
     >
       {url ? (

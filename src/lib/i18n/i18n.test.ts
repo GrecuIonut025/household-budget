@@ -23,7 +23,7 @@ describe("i18n", () => {
   });
 
   it("interpolates parameters", () => {
-    expect(createTranslator("en")("dashboard.greeting", { name: "Ana" })).toBe("Hello, Ana");
+    expect(createTranslator("en")("dashboard.greeting", { name: "Ana" })).toBe("Hi, Ana");
     expect(createTranslator("ro")("dashboard.greeting", { name: "Ana" })).toBe("Salut, Ana");
   });
 

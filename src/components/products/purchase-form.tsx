@@ -109,7 +109,7 @@ function PurchaseFormBody({ product, retailers, members, currentUserId, currency
           <option value="individual">{t("common.individual")}</option>
         </select>
       </Field>
-      <label className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 text-sm">
+      <label className="flex min-h-11 items-center gap-3 rounded-[var(--radius-md)] border border-border px-3 text-sm">
         <input type="checkbox" name="isPromo" className="size-5 accent-brand" />
         {t("products.purchasePromo")}
       </label>

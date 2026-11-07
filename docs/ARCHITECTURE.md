@@ -241,8 +241,9 @@ Rules:
   in `requireAppContext()` against the user's memberships.
 - **Server Components fetch, Server Actions mutate.** Actions validate with zod, call Supabase under the user's RLS,
   map database errors to localised messages (`describeDbError`) and `revalidatePath("/", "layout")`.
-- **UI:** mobile-first. Bottom nav (Dashboard, Transactions, Shopping Lists, Settings, More) on small screens, full
-  sidebar from `md`. Bottom sheets for forms. Dark mode follows the OS.
+- **UI:** mobile-first. Grouped nav (Overview · Finances · Shopping · Food · Household); bottom nav
+  (Overview, Transactions, Lists, Household, More) on small screens, full sidebar from `md`. Bottom sheets for forms.
+  Theme: light / dark / system (persisted in `localStorage`, default `prefers-color-scheme`). See `docs/DESIGN.md`.
 - **Empty states, not fake data:** every card has an explicit empty state; nothing is seeded except retailers and
   built-in categories.
 - **i18n:** `ro` (default) and `en` catalogues with identical keys (enforced by a test), ICU-style plurals, locale

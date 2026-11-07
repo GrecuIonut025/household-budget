@@ -52,7 +52,7 @@ export default async function ShoppingListsPage() {
             <li key={list.id}>
               <Link
                 href={`/shopping-lists/${list.id}`}
-                className="block rounded-2xl border border-border bg-surface p-4 shadow-card transition hover:border-brand/40"
+                className="block rounded-[var(--radius-lg)] border border-border bg-surface p-4 transition hover:border-brand/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

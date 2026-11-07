@@ -32,7 +32,7 @@ export function ProductPicker({
 
   if (selected && !open) {
     return (
-      <div className="flex min-h-11 items-center justify-between gap-2 rounded-xl border border-border bg-surface-2 px-3 text-sm">
+      <div className="flex min-h-11 items-center justify-between gap-2 rounded-[var(--radius-md)] border border-border bg-surface-2 px-3 text-sm">
         <span className="flex min-w-0 items-center gap-2">
           <Link2 size={14} className="shrink-0 text-brand" aria-hidden />
           <span className="truncate font-medium">
@@ -57,7 +57,7 @@ export function ProductPicker({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed border-border px-3 text-sm text-muted hover:bg-surface-2 hover:text-fg"
+        className="inline-flex min-h-11 w-full items-center gap-2 rounded-[var(--radius-md)] border border-dashed border-border px-3 text-sm text-muted hover:bg-surface-2 hover:text-fg"
       >
         <Link2 size={14} aria-hidden />
         {t("recipes.editor.linkProduct")}
@@ -66,7 +66,7 @@ export function ProductPicker({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-2">
+    <div className="rounded-[var(--radius-md)] border border-border bg-surface p-2">
       <div className="relative">
         <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
         <input

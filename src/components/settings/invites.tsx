@@ -35,7 +35,7 @@ export function InviteManager({ householdId, role, invites }: { householdId: str
       </form>
       {state.error ? <Alert>{state.error}</Alert> : null}
       {state.secret ? (
-        <div className="space-y-2 rounded-xl border border-brand/40 bg-brand-soft p-3">
+        <div className="space-y-2 rounded-[var(--radius-md)] border border-brand/40 bg-brand-soft p-3">
           <p className="text-xs font-medium text-brand-strong">{t("settings.inviteLink")}</p>
           <p className="break-all font-mono text-xs">{state.secret}</p>
           <CopyButton value={state.secret} />
@@ -44,7 +44,7 @@ export function InviteManager({ householdId, role, invites }: { householdId: str
       {invites.length === 0 ? (
         <p className="text-sm text-muted">{t("settings.inviteEmpty")}</p>
       ) : (
-        <ul className="divide-y divide-border rounded-xl border border-border">
+        <ul className="divide-y divide-border rounded-[var(--radius-md)] border border-border">
           {invites.map((inv) => (
             <li key={inv.id} className="flex items-center gap-3 px-3 py-2.5">
               <div className="min-w-0 flex-1">

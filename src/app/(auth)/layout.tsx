@@ -7,7 +7,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
       <div className="mb-8 flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icons/icon.svg" alt="" width={44} height={44} className="rounded-xl" />
+        <img src="/icons/icon.svg" alt="" width={44} height={44} className="rounded-[var(--radius-md)]" />
       </div>
       {children}
     </main>

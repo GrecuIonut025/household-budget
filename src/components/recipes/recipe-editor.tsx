@@ -250,7 +250,7 @@ export function RecipeEditor({ householdId, recipeId, recipe, imageUrl, products
       <Card className="space-y-4">
         <Field label={t("recipes.editor.photo")}>
           <div className="flex items-center gap-3">
-            <div className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-2xl bg-surface-2 text-muted">
+            <div className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-lg)] bg-surface-2 text-muted">
               {preview ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={preview} alt="" className="size-full object-cover" />
@@ -314,7 +314,7 @@ export function RecipeEditor({ householdId, recipeId, recipe, imageUrl, products
         <p className="mb-3 text-xs text-muted">{t("recipes.editor.ingredientsHint")}</p>
         <ul className="space-y-4">
           {rows.map((row, index) => (
-            <li key={row.key} className="space-y-2 rounded-2xl border border-border p-3">
+            <li key={row.key} className="space-y-2 rounded-[var(--radius-lg)] border border-border p-3">
               <div className="flex items-start gap-2">
                 <div className="grid min-w-0 flex-1 gap-2">
                   <input
@@ -367,10 +367,10 @@ export function RecipeEditor({ householdId, recipeId, recipe, imageUrl, products
               />
 
               {row.substitutions.length > 0 ? (
-                <div className="space-y-2 rounded-xl bg-surface-2 p-2">
+                <div className="space-y-2 rounded-[var(--radius-md)] bg-surface-2 p-2">
                   <p className="px-1 text-xs font-medium">{t("recipes.substitutions")}</p>
                   {row.substitutions.map((sub) => (
-                    <div key={sub.key} className="space-y-2 rounded-xl bg-surface p-2">
+                    <div key={sub.key} className="space-y-2 rounded-[var(--radius-md)] bg-surface p-2">
                       <div className="flex items-center gap-2">
                         <input
                           aria-label={t("recipes.editor.substituteName")}
