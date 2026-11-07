@@ -77,6 +77,70 @@ export async function getRetailers(): Promise<RetailerOption[]> {
   return (data ?? []) as RetailerOption[];
 }
 
+/** Compact rows for the dashboard — only columns from the base shopping_lists schema. */
+export interface ShoppingListPreview {
+  id: string;
+  name: string;
+  status: ShoppingListStatus;
+  scope: "shared" | "individual";
+  planned_budget: number | null;
+  item_count: number;
+  checked_count: number;
+  estimated_total: number | null;
+}
+
+/**
+ * Overview widget only. Avoids meal-planner columns (`preferred_retailer_id`,
+ * `strategy`, `meal_week_start`) so a DB that has not yet applied that migration
+ * still loads the dashboard. Returns [] on error instead of throwing.
+ */
+export async function getShoppingListPreviews(householdId: string): Promise<ShoppingListPreview[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("shopping_lists")
+    .select(
+      "id, name, status, scope, planned_budget, shopping_list_items(id, is_checked, quantity, estimated_unit_price, actual_unit_price)",
+    )
+    .eq("household_id", householdId)
+    .in("status", ["draft", "active"])
+    .order("created_at", { ascending: false })
+    .limit(5);
+  if (error) {
+    console.error("Could not load shopping list previews:", error.message);
+    return [];
+  }
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+    const items =
+      (row.shopping_list_items as Array<{
+        id: string;
+        is_checked: boolean;
+        quantity: number | string;
+        estimated_unit_price: number | string | null;
+        actual_unit_price: number | string | null;
+      }>) ?? [];
+    let estimated: number | null = null;
+    for (const item of items) {
+      const price = item.actual_unit_price ?? item.estimated_unit_price;
+      if (price === null) continue;
+      estimated = (estimated ?? 0) + Number(item.quantity) * Number(price);
+    }
+    return {
+      id: row.id as string,
+      name: row.name as string,
+      status: row.status as ShoppingListStatus,
+      scope: row.scope as "shared" | "individual",
+      planned_budget:
+        row.planned_budget === null || row.planned_budget === undefined
+          ? null
+          : Number(row.planned_budget),
+      item_count: items.length,
+      checked_count: items.filter((i) => i.is_checked).length,
+      estimated_total: estimated === null ? null : Math.round(estimated * 100) / 100,
+    };
+  });
+}
+
 export async function getShoppingLists(householdId: string): Promise<ShoppingListRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase

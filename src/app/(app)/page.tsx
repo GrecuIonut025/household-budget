@@ -33,7 +33,7 @@ import {
   toEngineTransactions,
 } from "@/lib/data/budget";
 import { getMembers, requireAppContext } from "@/lib/data/context";
-import { getShoppingLists } from "@/lib/data/shopping-lists";
+import { getShoppingListPreviews } from "@/lib/data/shopping-lists";
 import { canWrite, isAdmin } from "@/lib/data/types";
 import { formatDate, todayFor } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
     balance,
     recent,
     goalData,
-    shoppingLists,
+    plannedLists,
   ] = await Promise.all([
     getCurrentBudget(household.id, today),
     getCategories(household.id),
@@ -67,7 +67,7 @@ export default async function DashboardPage() {
     getHouseholdBalance(household.id),
     getRecentTransactions(household.id, 5),
     getSavingsGoals(household.id),
-    getShoppingLists(household.id),
+    getShoppingListPreviews(household.id),
   ]);
 
   const periodTransactions = budget
@@ -156,9 +156,6 @@ export default async function DashboardPage() {
       };
     });
 
-  const plannedLists = shoppingLists
-    .filter((l) => l.status === "draft" || l.status === "active")
-    .slice(0, 5);
   const plannedTotalMinor = plannedLists.reduce((sum, list) => {
     if (list.planned_budget !== null) return sum + toMinor(list.planned_budget);
     if (list.estimated_total !== null)
