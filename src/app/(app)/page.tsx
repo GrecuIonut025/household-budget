@@ -341,7 +341,7 @@ export default async function DashboardPage() {
         ) : null}
 
         <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-          <BudgetEvolutionChart seriesByRange={seriesByRange} formatAmount={money} />
+          <BudgetEvolutionChart seriesByRange={seriesByRange} currency={household.currency} />
           <CategoryDonut
             title={t("dashboard.categories")}
             detailsLabel={t("dashboard.categoriesDetails")}
