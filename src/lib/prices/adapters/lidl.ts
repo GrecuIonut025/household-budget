@@ -53,37 +53,78 @@ function parsePrice(raw: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+interface ColumnMap {
+  name: number;
+  size: number | null;
+  category: number | null;
+  price: number;
+}
+
+function detectColumns(header: string[]): ColumnMap | null {
+  const lower = header.map((h) => h.toLowerCase());
+  const find = (...needles: string[]) => lower.findIndex((h) => needles.some((n) => h.includes(n)));
+  const name = find("denumire", "produs", "name");
+  const price = find("pret", "preț", "price");
+  if (name < 0 || price < 0) return null;
+  const size = find("gramaj", "cantitate", "size", "unitate");
+  const category = find("categorie", "category");
+  return {
+    name,
+    size: size >= 0 ? size : null,
+    category: category >= 0 ? category : null,
+    price,
+  };
+}
+
 /** Converts a SheetJS-like AoA sheet into Lidl rows. Header row is detected by column titles. */
 export function parseLidlSheet(data: unknown[][]): LidlFileRow[] {
   if (data.length === 0) return [];
+
   let start = 0;
-  const header = data[0].map((c) => cell(c).toLowerCase());
-  if (header.some((h) => h.includes("denumire") || h.includes("pret"))) start = 1;
+  let cols: ColumnMap = { name: 0, size: 1, category: 2, price: 3 };
+  const header = (data[0] ?? []).map((c) => cell(c));
+  const detected = detectColumns(header);
+  if (detected) {
+    cols = detected;
+    start = 1;
+  } else if (header.some((h) => /denumire|pret|preț/i.test(h))) {
+    // Header-ish row but columns not recognised — skip it and keep positional fallback.
+    start = 1;
+  }
+
   const rows: LidlFileRow[] = [];
   for (let i = start; i < data.length; i++) {
     const line = data[i] ?? [];
-    const name = cell(line[0]);
+    const name = cell(line[cols.name]);
     if (!name) continue;
-    const price = parsePrice(cell(line[3] ?? line[line.length - 1]));
+    const priceCell =
+      cols.price < line.length ? cell(line[cols.price]) : cell(line[line.length - 1]);
+    const price = parsePrice(priceCell);
     if (price === null) continue;
     rows.push({
       name,
-      size: cell(line[1]) || null,
-      category: cell(line[2]) || null,
+      size: cols.size !== null ? cell(line[cols.size]) || null : cell(line[1]) || null,
+      category: cols.category !== null ? cell(line[cols.category]) || null : cell(line[2]) || null,
       price,
     });
   }
   return rows;
 }
 
-async function parseXlsb(buffer: ArrayBuffer): Promise<LidlFileRow[]> {
+async function parseXlsb(buffer: ArrayBuffer): Promise<{ rows: LidlFileRow[]; sheetName: string | null }> {
   const XLSX = await import("xlsx");
   const workbook = XLSX.read(buffer, { type: "array" });
+  if (!workbook.SheetNames.length) {
+    throw new Error("Lidl XLSB has no sheets");
+  }
   const sheetName = workbook.SheetNames.find((n) => n.toUpperCase() === "EPEL") ?? workbook.SheetNames[0];
-  if (!sheetName) return [];
   const sheet = workbook.Sheets[sheetName];
+  if (!sheet) throw new Error(`Lidl XLSB missing sheet “${sheetName}”`);
   const aoa = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, { header: 1, defval: "" });
-  return parseLidlSheet(aoa as unknown[][]);
+  if (!Array.isArray(aoa) || aoa.length === 0) {
+    throw new Error(`Lidl sheet “${sheetName}” is empty`);
+  }
+  return { rows: parseLidlSheet(aoa as unknown[][]), sheetName };
 }
 
 export const lidlAdapter: PriceAdapter = {
@@ -99,18 +140,39 @@ export const lidlAdapter: PriceAdapter = {
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (!res.ok) {
-        return { ok: false, error: `Lidl file HTTP ${res.status}`, offers: [], warnings };
+        return {
+          ok: false,
+          error: `Lidl file HTTP ${res.status} ${res.statusText || ""}`.trim(),
+          offers: [],
+          warnings,
+        };
       }
-      const rows = await parseXlsb(await res.arrayBuffer());
-      if (rows.length === 0) warnings.push("Lidl file parsed but contained no priced rows.");
-      return { ok: true, offers: rowsToOffers(rows, now.toISOString()), warnings };
+      const buffer = await res.arrayBuffer();
+      if (buffer.byteLength < 64) {
+        return { ok: false, error: "Lidl file response was empty or truncated", offers: [], warnings };
+      }
+      const { rows, sheetName } = await parseXlsb(buffer);
+      if (rows.length === 0) {
+        return {
+          ok: false,
+          error: `Lidl sheet “${sheetName ?? "?"}” parsed but contained no priced rows`,
+          offers: [],
+          warnings,
+        };
+      }
+      const offers = rowsToOffers(rows, now.toISOString());
+      if (offers.length === 0) {
+        return {
+          ok: false,
+          error: "Lidl file had rows but none with a usable positive price",
+          offers: [],
+          warnings,
+        };
+      }
+      return { ok: true, offers, warnings };
     } catch (err) {
-      return {
-        ok: false,
-        error: err instanceof Error ? err.message : "Lidl file fetch failed",
-        offers: [],
-        warnings,
-      };
+      const message = err instanceof Error ? err.message : "Lidl file fetch failed";
+      return { ok: false, error: message, offers: [], warnings };
     }
   },
 };

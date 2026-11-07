@@ -49,7 +49,7 @@ const productSchema = z.object({
   preferredRetailerId: z.uuid().nullable(),
   notes: z.string().trim().max(1000),
   imagePath: z.string().max(300),
-  dataSource: z.enum(["manual", "open_food_facts"]),
+  dataSource: z.enum(["manual", "open_food_facts", "lidl_xlsb"]),
 });
 
 async function requireWriter(householdId: string) {

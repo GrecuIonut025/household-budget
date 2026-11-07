@@ -45,11 +45,12 @@ function likePattern(q: string): string {
 
 export async function getProducts(
   householdId: string,
-  opts: { q?: string; filter?: ProductFilter } = {},
+  opts: { q?: string; filter?: ProductFilter; limit?: number } = {},
 ): Promise<ProductWithBarcodes[]> {
   const supabase = await createClient();
   const filter = opts.filter ?? "all";
   const q = opts.q?.trim() ?? "";
+  const limit = Math.min(Math.max(opts.limit ?? 500, 1), 10_000);
 
   let query = supabase
     .from("products")
@@ -57,7 +58,7 @@ export async function getProducts(
     .eq("household_id", householdId)
     .order("is_favorite", { ascending: false })
     .order("name")
-    .limit(500);
+    .limit(limit);
   if (filter !== "any") query = query.eq("is_archived", filter === "archived");
   if (filter === "favorites") query = query.eq("is_favorite", true);
   if (filter === "frequent") query = query.eq("is_frequent", true);
