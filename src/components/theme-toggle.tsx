@@ -27,40 +27,57 @@ export function ThemeToggle({
   /** Pill shows sun/moon like the Bugetify reference. */
   variant?: "button" | "pill";
 }) {
-  const { preference, setPreference, cycle, resolved } = useTheme();
+  const { preference, resolved, setPreference, cycle } = useTheme();
   const { t } = useI18n();
 
-  if (variant === "pill") {
-    const isDark = resolved === "dark";
+  if (variant === "pill" || (compact && tone === "sidebar")) {
+    const lightActive = resolved === "light";
+    const darkActive = resolved === "dark";
     return (
       <div
         role="group"
         aria-label={t("theme.label")}
-        className="inline-flex w-full items-center rounded-full border border-sidebar-border bg-sidebar-hover/80 p-1"
+        className={clsx(
+          "flex items-center justify-between rounded-full border border-sidebar-border bg-card p-1.5",
+          variant === "pill" ? "w-full" : "mx-auto w-24",
+        )}
+        title={
+          preference === "system"
+            ? t("theme.toggle", { mode: t("theme.system") })
+            : undefined
+        }
       >
         <button
           type="button"
-          onClick={() => setPreference("light")}
-          aria-pressed={!isDark}
+          onClick={() => setPreference(preference === "light" ? "system" : "light")}
           className={clsx(
-            "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-xs font-medium transition",
-            !isDark ? "bg-surface text-fg shadow-sm" : "text-sidebar-muted hover:text-sidebar-fg",
+            "flex items-center justify-center rounded-full transition-colors",
+            variant === "pill" ? "h-9 flex-1" : "size-8",
+            lightActive
+              ? "bg-brand/40 text-brand-accent"
+              : "text-sidebar-muted hover:text-sidebar-fg",
           )}
+          aria-label={t("theme.light")}
+          aria-pressed={preference === "light"}
           title={t("theme.light")}
         >
-          <Sun size={15} aria-hidden />
+          <Sun size={16} aria-hidden />
         </button>
         <button
           type="button"
-          onClick={() => setPreference("dark")}
-          aria-pressed={isDark}
+          onClick={() => setPreference(preference === "dark" ? "system" : "dark")}
           className={clsx(
-            "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-xs font-medium transition",
-            isDark ? "brand-gradient text-brand-fg shadow-sm" : "text-sidebar-muted hover:text-sidebar-fg",
+            "flex items-center justify-center rounded-full transition-colors",
+            variant === "pill" ? "h-9 flex-1" : "size-8",
+            darkActive
+              ? "bg-brand/40 text-brand-accent"
+              : "text-sidebar-muted hover:text-sidebar-fg",
           )}
+          aria-label={t("theme.dark")}
+          aria-pressed={preference === "dark"}
           title={t("theme.dark")}
         >
-          <Moon size={15} aria-hidden />
+          <Moon size={16} aria-hidden fill={darkActive ? "currentColor" : "none"} />
         </button>
       </div>
     );
@@ -73,11 +90,7 @@ export function ThemeToggle({
       <button
         type="button"
         onClick={cycle}
-        className={
-          tone === "sidebar"
-            ? "inline-flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-sidebar-muted transition hover:bg-sidebar-hover hover:text-sidebar-fg"
-            : buttonClass("ghost", "size-10 shrink-0 px-0")
-        }
+        className={buttonClass("ghost", "size-10 shrink-0 rounded-2xl px-0")}
         aria-label={t("theme.toggle", { mode: t(current.labelKey) })}
         title={t(current.labelKey)}
       >
@@ -90,7 +103,7 @@ export function ThemeToggle({
     <div
       role="group"
       aria-label={t("theme.label")}
-      className="inline-flex rounded-[var(--radius-md)] border border-border bg-surface p-0.5"
+      className="inline-flex rounded-full border border-border bg-surface p-1"
     >
       {OPTIONS.map(({ value, icon: Icon, labelKey }) => {
         const active = preference === value;
@@ -101,8 +114,10 @@ export function ThemeToggle({
             onClick={() => setPreference(value)}
             aria-pressed={active}
             className={clsx(
-              "inline-flex min-h-9 items-center gap-1.5 rounded-[calc(var(--radius-md)-2px)] px-2.5 text-xs font-medium transition",
-              active ? "bg-surface-2 text-fg" : "text-muted hover:text-fg",
+              "inline-flex min-h-9 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium transition",
+              active
+                ? "bg-brand/15 text-brand-strong"
+                : "text-muted hover:text-fg",
             )}
           >
             <Icon size={14} aria-hidden />

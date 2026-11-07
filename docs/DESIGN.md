@@ -1,50 +1,48 @@
-# Design system
+# Design system — Bugetify
 
-Product UI for Bugetify (household budget). Visual references for quality (not templates): Linear, Revolut, Monzo — plus the dark purple Bugetify dashboard reference.
+Visual source of truth: `docs/bugetify-design-reference.html` (exported mock). Screenshot composition: store `media/dashboard-reference.png`.
 
 ## Principles
 
-- **Money first.** Budget limit, spent, remaining, and pace sit above secondary panels.
+- **Money first.** Available balance and spending pace sit above secondary panels.
 - **Planned ≠ spent.** Reservations and shopping estimates never look like real expenses.
-- **Dark chrome first.** Near-black canvas (`#0f0f1b`), slate cards (`#1b1b2f`), purple/indigo gradients for active nav and primary CTAs; green only for positive progress.
-- **Empty, not fake.** Missing budgets, goals, recipes, or popular products get short empty states — never demo money or invented recipes.
+- **Bugetify chrome.** Dark navy sidebar, purple→indigo active nav, soft `dashboard-card` panels, 1.25rem radii.
+- **Colour for meaning.** Brand purple for identity; cyan / emerald / amber / coral for accents and status.
+- **Empty, not fake.** Missing budgets, goals, or lists get short empty states — never demo money from the HTML mock.
 
 ## Tokens
 
-Defined as CSS variables in `src/app/globals.css`, exposed to Tailwind via `@theme inline`.
+Defined as CSS variables in `src/app/globals.css`, exposed to Tailwind via `@theme inline`. No CDN Tailwind script.
 
-| Token | Role |
-| --- | --- |
-| `--bg` | Page background (`#0f0f1b` in dark) |
-| `--surface` | Panels, sheets, lists (`#1b1b2f` in dark) |
-| `--surface-2` | Hover / selected wash, progress track |
-| `--border` | Hairline dividers and panel edges |
-| `--fg` / `--muted` | Primary and secondary text |
-| `--brand*` / `--brand-grad-*` | Identity, active nav pill, primary actions |
-| `--ok*` / `--warn*` / `--danger*` | Financial status only |
-| `--sidebar*` | Left shell chrome |
-| `--radius-sm/md/lg` | 10 / 14 / 18 px |
+| Token | Role | Dark (HTML) |
+| --- | --- | --- |
+| `--bg` | Page background | `#090b12` |
+| `--sidebar` | Shell chrome | `#0d101b` |
+| `--card` / `--surface` | Panels | `#121626` |
+| `--border` | Edges | `#1f253d` |
+| `--brand` | Purple identity | `#7c3aed` |
+| `--brand-accent` | Lighter purple | `#8b5cf6` |
+| `--radius-lg` | Card radius | `1.25rem` |
 
-Default preference is **dark** (Bugetify reference). Light and system remain available via the theme toggle. Forced dark uses `html.dark`; forced light uses `html.light`. With neither class, `@media (prefers-color-scheme: dark)` applies dark tokens (system).
+Light mode keeps the same brand hues on lifted surfaces. Theme toggle (system / light / dark) still works via `html.light` / `html.dark` + media query.
 
-## Theme
+## Typography
 
-`ThemeProvider` stores `light | dark | system` in `localStorage` and a matching `hb-theme` cookie. Missing preference resolves to `dark`. The root layout reads the cookie and sets `html.light` / `html.dark` on the server (no boot `<script>`). Sidebar uses a sun/moon pill; mobile header keeps the compact cycle control.
-
-## Typography & spacing
-
-- UI font: Geist. Hero quote: Caveat (`font-script`). Tabular nums on money (`.tabular`).
-- Page title ~28–34 px; section labels ~13–14 px; body 14 px.
-- Vertical rhythm: sections ~20–32 px apart; cards use 16–20 px padding.
+- UI: Inter (`--font-inter`)
+- Handwriting accents: Caveat (`--font-caveat` / `.font-handwriting`)
+- Tabular nums on money (`.tabular`)
 
 ## Components
 
-Shared primitives live in `src/components/ui.tsx` and `sheet.tsx`:
+Shared primitives in `src/components/ui.tsx`:
 
-- `Card`, `Section`, `PageHeader`, `Stat`, `ProgressBar`, `EmptyState`, `Badge`, `Alert`, `Field`, `Button` / `buttonClass`, `ListSurface`
-- Dashboard widgets in `src/components/dashboard/*` (summary cards, progress ring, bar evolution chart, category donut, recipe promo)
-- Flat sidebar nav in `src/lib/nav.ts` (Dashboard → … → Settings), plus meal planner retained
+- `Card` → `.dashboard-card`
+- Primary buttons → `.btn-gradient` (purple→indigo)
+- Active nav → `.nav-active`
+- `PageHeader`, `EmptyState`, `Field`, `ListSurface`, sheets
+
+Shell: `src/app/(app)/layout.tsx` + `src/components/nav.tsx` + sidebar theme pill.
 
 ## Copy
 
-User-facing strings are Romanian-first (`ro` default) with matching `en` keys. Brand name and tagline come from `app.name` / `app.tagline`.
+Romanian-first (`ro` default) with matching `en` keys. Prefer short, concrete phrasing; match HTML tone where natural (`Plan. Cumpără. Economisește.`).

@@ -4,10 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 export function Card({ className, ...props }: ComponentProps<"section">) {
   return (
     <section
-      className={clsx(
-        "rounded-[var(--radius-lg)] border border-border bg-surface p-4 sm:p-5",
-        className,
-      )}
+      className={clsx("dashboard-card p-4 sm:p-5", className)}
       {...props}
     />
   );
@@ -22,9 +19,7 @@ export function CardTitle({
 }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-3">
-      <h2 className="text-[13px] font-semibold tracking-wide text-muted">
-        {children}
-      </h2>
+      <h2 className="text-base font-semibold text-fg">{children}</h2>
       {action}
     </div>
   );
@@ -45,9 +40,7 @@ export function Section({
     <section className={clsx("space-y-3", className)}>
       {title ? (
         <div className="flex items-end justify-between gap-3">
-          <h2 className="text-[13px] font-semibold tracking-wide text-muted">
-            {title}
-          </h2>
+          <h2 className="text-base font-semibold text-fg">{title}</h2>
           {action}
         </div>
       ) : null}
@@ -68,11 +61,11 @@ export function PageHeader({
   return (
     <header className="mb-6 flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="truncate text-xl font-semibold tracking-tight text-fg sm:text-[1.375rem]">
+        <h1 className="truncate text-xl font-bold tracking-tight text-fg sm:text-2xl">
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-1 text-sm text-muted">{subtitle}</p>
+          <p className="mt-1.5 text-sm font-medium text-muted">{subtitle}</p>
         ) : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
@@ -98,7 +91,7 @@ export function Stat({
       <p className="text-xs font-medium text-muted">{label}</p>
       <p
         className={clsx(
-          "tabular mt-1 font-semibold tracking-tight",
+          "tabular mt-1 font-bold tracking-tight",
           size === "lg" && "text-3xl sm:text-4xl",
           size === "md" && "text-2xl",
           size === "sm" && "text-lg",
@@ -174,11 +167,15 @@ export function EmptyState({
         "flex flex-col items-start gap-1.5 text-left",
         compact
           ? "py-2"
-          : "rounded-[var(--radius-md)] border border-dashed border-border px-4 py-6",
+          : "rounded-[var(--radius-lg)] border border-dashed border-border px-4 py-8",
       )}
     >
-      {icon ? <div className="mb-0.5 text-muted">{icon}</div> : null}
-      <p className="text-sm font-medium text-fg">{title}</p>
+      {icon ? (
+        <div className="mb-1 inline-flex size-11 items-center justify-center rounded-2xl bg-brand-soft text-brand-strong">
+          {icon}
+        </div>
+      ) : null}
+      <p className="text-sm font-semibold text-fg">{title}</p>
       {body ? (
         <p className="max-w-md text-sm leading-relaxed text-muted">{body}</p>
       ) : null}
@@ -197,7 +194,7 @@ export function Badge({
   return (
     <span
       className={clsx(
-        "inline-flex items-center rounded-[var(--radius-sm)] px-1.5 py-0.5 text-[11px] font-medium",
+        "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-semibold",
         tone === "default" && "bg-surface-2 text-muted",
         tone === "ok" && "bg-ok-soft text-ok",
         tone === "warn" && "bg-warn-soft text-warn",
@@ -233,7 +230,7 @@ export function Alert({
 }
 
 export const inputClass =
-  "block w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 py-2.5 text-base text-fg placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 disabled:opacity-60 sm:text-sm";
+  "block w-full rounded-2xl border border-border bg-input-bg px-3.5 py-2.5 text-base text-fg shadow-inner placeholder:text-muted/70 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand disabled:opacity-60 sm:text-sm";
 
 export function Field({
   label,
@@ -258,7 +255,7 @@ export function Field({
 }
 
 const buttonBase =
-  "inline-flex min-h-10 items-center justify-center gap-2 rounded-[var(--radius-md)] px-3.5 text-sm font-medium transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35";
+  "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-3.5 text-sm font-semibold transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/35";
 
 export function buttonClass(
   variant: "primary" | "secondary" | "danger" | "ghost" = "primary",
@@ -266,8 +263,7 @@ export function buttonClass(
 ) {
   return clsx(
     buttonBase,
-    variant === "primary" &&
-      "brand-gradient text-brand-fg hover:opacity-95",
+    variant === "primary" && "btn-gradient hover:brightness-105",
     variant === "secondary" &&
       "border border-border bg-surface text-fg hover:bg-surface-2",
     variant === "danger" && "bg-danger-soft text-danger hover:brightness-95",
@@ -298,7 +294,7 @@ export function ListSurface({
   return (
     <ul
       className={clsx(
-        "divide-y divide-border overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface",
+        "divide-y divide-border overflow-hidden rounded-[var(--radius-lg)] border border-border-soft bg-surface",
         className,
       )}
       {...props}

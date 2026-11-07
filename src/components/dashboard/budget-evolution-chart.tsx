@@ -88,13 +88,13 @@ export function BudgetEvolutionChart({
   };
 
   return (
-    <section className="min-h-[20rem] overflow-hidden rounded-[var(--radius-lg)] bg-chart-surface p-4 text-sidebar-fg shadow-[var(--shadow-card)] sm:p-5">
+    <section className="dashboard-card min-h-[20rem] overflow-hidden p-5 lg:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-sidebar-fg">
+        <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-fg">
           <ChartNoAxesColumn size={16} aria-hidden className="text-brand" />
           {t("dashboard.evolution")}
         </h2>
-        <div className="inline-flex rounded-full bg-white/5 p-0.5">
+        <div className="inline-flex rounded-full border border-border bg-surface-2 p-0.5">
           {RANGES.map((r) => (
             <button
               key={r}
@@ -102,7 +102,7 @@ export function BudgetEvolutionChart({
               onClick={() => setRange(r)}
               className={clsx(
                 "rounded-full px-2.5 py-1 text-xs font-medium transition",
-                range === r ? "brand-gradient text-brand-fg" : "text-sidebar-muted hover:text-sidebar-fg",
+                range === r ? "brand-gradient text-brand-fg" : "text-muted hover:text-fg",
               )}
             >
               {rangeLabel(r)}
@@ -111,7 +111,7 @@ export function BudgetEvolutionChart({
         </div>
       </div>
 
-      <div className="mb-3 flex items-center gap-4 text-xs text-sidebar-muted">
+      <div className="mb-3 flex items-center gap-4 text-xs text-muted">
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2 rounded-full bg-accent-blue" />
           {t("dashboard.evolutionSpent")}
@@ -173,10 +173,10 @@ export function BudgetEvolutionChart({
             <circle cx={geometry.lastX} cy={geometry.lastY} r="4.5" fill="#60a5fa" />
           </svg>
           <div className="pointer-events-none absolute right-[4%] top-[8%] rounded-lg bg-white/10 px-2.5 py-1.5 text-xs backdrop-blur">
-            <p className="font-semibold tabular text-sidebar-fg">
+            <p className="font-semibold tabular text-fg">
               {formatAmount(geometry.last.cumulativeExpenses)}
             </p>
-            <p className="text-sidebar-muted">{t("common.today")}</p>
+            <p className="text-muted">{t("common.today")}</p>
           </div>
         </div>
       ) : (
@@ -187,7 +187,7 @@ export function BudgetEvolutionChart({
             ))}
             <line x1="16" x2="624" y1="100" y2="100" stroke="#34d399" strokeWidth="2" strokeDasharray="5 5" opacity="0.35" />
           </svg>
-          <p className="absolute inset-0 flex items-center justify-center text-sm text-sidebar-muted">
+          <p className="absolute inset-0 flex items-center justify-center text-sm text-muted">
             {t("dashboard.categoriesEmpty")}
           </p>
         </div>

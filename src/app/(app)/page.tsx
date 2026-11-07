@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Bell,
-  CalendarDays,
-  ChevronDown,
-  ShoppingBasket,
+  Search,
   Target,
+  Users,
   Wallet,
 } from "lucide-react";
 import { BudgetEvolutionChart } from "@/components/dashboard/budget-evolution-chart";
@@ -268,78 +267,112 @@ export default async function DashboardPage() {
   const recommended = recipes.find((r) => r.is_favorite) ?? recipes[0] ?? null;
   const recipeImages = recommended ? await getImageUrls([recommended.image_path]) : {};
 
+  const spendPct =
+    spendingLimit !== null && spendingLimit > 0
+      ? Math.round(((summary?.expenses ?? 0) / spendingLimit) * 100)
+      : 0;
+
   return (
-    <>
-      <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <h1 className="truncate text-2xl font-semibold tracking-tight text-fg sm:text-[1.75rem]">
-            {t("dashboard.greeting", { name: firstName })}
-          </h1>
-          <p className="mt-1 max-w-xl text-sm text-muted">{t("dashboard.subtitle")}</p>
+    <div className="space-y-6">
+      <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div className="relative w-full max-w-xl">
+          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-muted">
+            <Search size={16} aria-hidden />
+          </span>
+          <input
+            readOnly
+            tabIndex={-1}
+            aria-label={t("nav.searchPlaceholder")}
+            placeholder={t("nav.searchPlaceholder")}
+            className="w-full rounded-2xl border border-border bg-surface py-2.5 pl-11 pr-4 text-sm text-fg shadow-inner placeholder:text-muted/80 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+          />
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <div className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-surface px-3 text-sm font-medium shadow-sm">
-            <CalendarDays size={16} className="text-muted" aria-hidden />
-            <span className="capitalize">{formatMonthLabel(month, locale)}</span>
-            <ChevronDown size={14} className="text-muted" aria-hidden />
-          </div>
+        <div className="flex items-center justify-end gap-4 self-end md:self-auto">
+          <span className="hidden text-xs font-medium capitalize text-muted sm:block">
+            {formatMonthLabel(month, locale)}
+          </span>
           <details className="relative">
             <summary
-              className="relative inline-flex size-10 list-none items-center justify-center rounded-full border border-border bg-surface text-muted shadow-sm marker:content-none [&::-webkit-details-marker]:hidden"
+              className="relative flex size-10 list-none items-center justify-center rounded-2xl border border-border bg-surface text-muted transition hover:border-muted hover:text-fg marker:content-none [&::-webkit-details-marker]:hidden"
               aria-label={t("dashboard.notifications")}
             >
               <Bell size={18} aria-hidden />
-              <span className="absolute right-2.5 top-2.5 size-1.5 rounded-full bg-danger" aria-hidden />
             </summary>
-            <div className="absolute right-0 z-20 mt-2 w-56 rounded-[var(--radius-md)] border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-card)]">
+            <div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-card)]">
               {t("dashboard.notificationsEmpty")}
             </div>
           </details>
-          <span
-            className="inline-flex size-10 items-center justify-center rounded-full brand-gradient text-sm font-semibold text-brand-fg"
-            title={ctx.displayName}
-          >
-            {avatarLetter(ctx.displayName)}
-          </span>
+          <div className="flex items-center gap-3 rounded-2xl border border-transparent py-1 pl-1 pr-2 transition hover:border-border hover:bg-surface">
+            <span
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-fg ring-2 ring-purple-500/40"
+              title={ctx.displayName}
+            >
+              {avatarLetter(ctx.displayName)}
+            </span>
+            <span className="hidden text-sm font-semibold text-fg sm:block">{firstName}</span>
+          </div>
           {writer ? (
             <AddTransactionButton label={t("dashboard.addTransaction")} {...formProps} />
           ) : null}
         </div>
       </header>
 
+      <section className="relative overflow-hidden rounded-3xl border border-[#1f2642] bg-gradient-to-r from-[#111528] via-[#151a33] to-[#0e1122] p-6 lg:p-9">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/dashboard-hero.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover object-right-top opacity-40 mix-blend-lighten md:w-3/5 md:opacity-90"
+          style={{
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.85) 45%, black 100%)",
+            maskImage:
+              "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.85) 45%, black 100%)",
+          }}
+        />
+        <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight text-white lg:text-3xl">
+              {t("dashboard.greeting", { name: firstName })}
+            </h1>
+            <p className="mt-1.5 max-w-lg text-sm font-medium text-slate-300 lg:text-base">
+              {t("dashboard.subtitle")}
+            </p>
+          </div>
+          <p className="whitespace-pre-line font-handwriting rotate-[-2deg] text-2xl tracking-wide text-slate-200 drop-shadow-md md:pr-2 md:text-right lg:text-3xl">
+            {t("dashboard.heroQuote")}
+          </p>
+        </div>
+      </section>
+
       <div className="flex flex-col gap-5">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <SummaryCard
-            tone="green"
-            icon={<Wallet size={18} aria-hidden />}
-            label={t("dashboard.available")}
-            value={money(balance.available)}
-            hint={t("dashboard.availableHint")}
-          />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard
             tone="blue"
-            icon={<ShoppingBasket size={18} aria-hidden />}
+            icon={<Wallet size={22} aria-hidden />}
+            label={t("dashboard.monthBudget")}
+            value={spendingLimit === null ? money(balance.available) : money(spendingLimit)}
+            hint={spendingLimit === null ? t("dashboard.availableHint") : t("dashboard.monthBudgetHint")}
+          />
+          <SummaryCard
+            tone="green"
+            iconVariant="plain"
+            icon={
+              <ProgressRing
+                value={summary?.expenses ?? 0}
+                max={spendingLimit ?? 1}
+                label={spendingLimit ? `${spendPct}%` : "—"}
+                size={48}
+                stroke={3.5}
+                tone="green"
+              />
+            }
             label={t("dashboard.monthExpenses")}
             value={money(summary?.expenses ?? 0)}
           />
           <SummaryCard
             tone="purple"
-            icon={<Target size={18} aria-hidden />}
-            label={t("dashboard.paidFromBudget")}
-            value={
-              summary?.dailyAllowance === null || summary?.dailyAllowance === undefined
-                ? "—"
-                : money(summary.dailyAllowance)
-            }
-            hint={
-              tomorrow?.tomorrowAllowance !== null && tomorrow?.tomorrowAllowance !== undefined
-                ? t("dashboard.tomorrowHintShort", { amount: money(tomorrow.tomorrowAllowance) })
-                : undefined
-            }
-          />
-          <SummaryCard
-            tone="orange"
-            icon={<Target size={18} aria-hidden />}
+            icon={<Target size={22} aria-hidden />}
             label={t("dashboard.remainingToSpend")}
             value={remaining === null ? "—" : money(Math.max(remaining, 0))}
             hint={
@@ -348,16 +381,42 @@ export default async function DashboardPage() {
                 : t("dashboard.remainingOf", { total: money(spendingLimit) })
             }
             trailing={
-              remainingPct === null ? (
-                <ProgressRing value={0} max={1} label="—" tone="orange" />
-              ) : (
+              remainingPct === null ? undefined : (
                 <ProgressRing
                   value={Math.max(remaining ?? 0, 0)}
                   max={spendingLimit ?? 1}
                   label={`${remainingPct}%`}
-                  tone="orange"
+                  size={48}
+                  stroke={3.5}
+                  tone="purple"
                 />
               )
+            }
+          />
+          <SummaryCard
+            tone="orange"
+            icon={<Users size={22} aria-hidden />}
+            label={t("dashboard.peopleInBudget")}
+            value={
+              <span className="inline-flex items-center gap-2">
+                <span>{members.length}</span>
+                <span className="flex -space-x-2">
+                  {members.slice(0, 3).map((m) => (
+                    <span
+                      key={m.user_id}
+                      title={m.display_name}
+                      className="inline-flex size-6 items-center justify-center rounded-full bg-indigo-500 text-[10px] font-semibold text-white ring-2 ring-[var(--card)]"
+                    >
+                      {avatarLetter(m.display_name)}
+                    </span>
+                  ))}
+                </span>
+              </span>
+            }
+            hint={
+              summary?.dailyAllowance === null || summary?.dailyAllowance === undefined
+                ? undefined
+                : `${t("dashboard.paidFromBudget")}: ${money(summary.dailyAllowance)}`
             }
           />
         </div>
@@ -378,20 +437,25 @@ export default async function DashboardPage() {
           </Card>
         ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-          <BudgetEvolutionChart seriesByRange={seriesByRange} currency={household.currency} />
-          <CategoryDonut
-            title={t("dashboard.categories")}
-            detailsLabel={t("dashboard.categoriesDetails")}
-            emptyTitle={t("dashboard.categoriesEmpty")}
-            slices={categorySlices}
-            centerLabel={t("dashboard.totalSpent")}
-            totalLabel={money(summary?.expenses ?? 0)}
-            insight={insight}
-          />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <div className="lg:col-span-8">
+            <BudgetEvolutionChart seriesByRange={seriesByRange} currency={household.currency} />
+          </div>
+          <div className="lg:col-span-4">
+            <CategoryDonut
+              title={t("dashboard.categories")}
+              detailsLabel={t("dashboard.categoriesDetails")}
+              emptyTitle={t("dashboard.categoriesEmpty")}
+              slices={categorySlices}
+              centerLabel={t("dashboard.totalSpent")}
+              totalLabel={money(summary?.expenses ?? 0)}
+              insight={insight}
+            />
+          </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <div className="lg:col-span-4">
           <RecentPurchases
             title={t("dashboard.recent")}
             viewAll={t("dashboard.viewAll")}
@@ -404,6 +468,8 @@ export default async function DashboardPage() {
             t={t}
             today={today}
           />
+          </div>
+          <div className="lg:col-span-5">
           <QuickLists
             title={t("dashboard.quickLists")}
             viewAll={t("dashboard.viewAll")}
@@ -412,6 +478,8 @@ export default async function DashboardPage() {
             lists={plannedLists}
             canAdd={writer}
           />
+          </div>
+          <div className="lg:col-span-3">
           <RecipePromo
             title={t("dashboard.recipePromoTitle")}
             body={t("dashboard.recipePromoBody")}
@@ -430,6 +498,7 @@ export default async function DashboardPage() {
                 : null
             }
           />
+          </div>
         </div>
 
         {summary ? (
@@ -673,6 +742,6 @@ export default async function DashboardPage() {
           </Section>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -31,7 +31,7 @@ export function RecipeCard({
 }) {
   const minutes = (recipe.prep_minutes ?? 0) + (recipe.cook_minutes ?? 0);
   return (
-    <li className="group relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface transition hover:-translate-y-0.5">
+    <li className="dashboard-card group relative overflow-hidden transition hover:-translate-y-1 hover:shadow-lg">
       <Link href={`/recipes/${recipe.id}`} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
         <div className="relative aspect-[16/10] w-full overflow-hidden bg-gradient-to-br from-brand-soft to-surface-2">
           {imageUrl ? (
