@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  ArrowRight,
-  Pencil,
-  Plus,
-  Users,
+  Bell,
+  CalendarDays,
+  ChevronDown,
+  ShoppingBasket,
+  Target,
   Wallet,
 } from "lucide-react";
 import { BudgetEvolutionChart } from "@/components/dashboard/budget-evolution-chart";
 import { CategoryDonut } from "@/components/dashboard/category-donut";
 import { ProgressRing } from "@/components/dashboard/progress-ring";
+import { QuickLists } from "@/components/dashboard/quick-lists";
+import { RecentPurchases } from "@/components/dashboard/recent-purchases";
 import { RecipePromo } from "@/components/dashboard/recipe-promo";
 import { SummaryCard } from "@/components/dashboard/summary-card";
-import { ProductThumb } from "@/components/products/product-thumb";
 import { AddTransactionButton } from "@/components/transaction-form";
-import { TransactionList } from "@/components/transaction-list";
 import {
   Badge,
   Card,
@@ -49,17 +50,14 @@ import {
   toEngineTransactions,
 } from "@/lib/data/budget";
 import { getMembers, requireAppContext } from "@/lib/data/context";
-import { getProducts, getPurchasesSince, signProductImages } from "@/lib/data/products";
 import { getImageUrls, getRecipesWithIngredients } from "@/lib/data/recipes";
 import { getShoppingListPreviews } from "@/lib/data/shopping-lists";
 import { canWrite, isAdmin } from "@/lib/data/types";
-import { addDays } from "@/lib/dates";
-import { todayFor } from "@/lib/format";
+import { addDays, currentMonth, diffDays } from "@/lib/dates";
+import { formatMonthLabel, todayFor } from "@/lib/format";
 import { categoryLabel } from "@/lib/i18n/category";
 import { getTranslator } from "@/lib/i18n/server";
 import { formatMoney, toMinor } from "@/lib/money";
-import { mostPurchased } from "@/lib/products/rankings";
-import { lineTotalMinor } from "@/lib/products/stats";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslator();
@@ -70,27 +68,6 @@ function avatarLetter(name: string): string {
   return name.trim().slice(0, 1).toUpperCase() || "?";
 }
 
-function priceChangePct(
-  purchases: { product_id: string; purchased_on: string; created_at: string; id: string; quantity: number; unit_price: number }[],
-  productId: string,
-): number | null {
-  const rows = purchases.filter((p) => p.product_id === productId);
-  if (rows.length < 2) return null;
-  const sorted = [...rows].sort(
-    (a, b) =>
-      a.purchased_on.localeCompare(b.purchased_on) ||
-      a.created_at.localeCompare(b.created_at) ||
-      a.id.localeCompare(b.id),
-  );
-  const latest = sorted[sorted.length - 1]!;
-  const earlier = sorted.slice(0, -1);
-  const quantity = earlier.reduce((s, p) => s + p.quantity, 0);
-  if (quantity <= 0) return null;
-  const baseline = earlier.reduce((s, p) => s + lineTotalMinor(p.quantity, p.unit_price), 0) / quantity;
-  if (baseline <= 0) return null;
-  return (toMinor(latest.unit_price) - baseline) / baseline;
-}
-
 export default async function DashboardPage() {
   const ctx = await requireAppContext();
   const { t, locale } = await getTranslator();
@@ -98,6 +75,7 @@ export default async function DashboardPage() {
   const today = todayFor(household.timezone);
   const money = (minor: number) => formatMoney(minor, household.currency, locale);
   const firstName = ctx.displayName.trim().split(/\s+/)[0] || ctx.displayName;
+  const month = currentMonth(today);
 
   const [
     budget,
@@ -107,19 +85,15 @@ export default async function DashboardPage() {
     recent,
     goalData,
     plannedLists,
-    products,
-    purchases,
     recipes,
   ] = await Promise.all([
     getCurrentBudget(household.id, today),
     getCategories(household.id),
     getMembers(household.id),
     getHouseholdBalance(household.id),
-    getRecentTransactions(household.id, 6),
+    getRecentTransactions(household.id, 5),
     getSavingsGoals(household.id),
     getShoppingListPreviews(household.id),
-    getProducts(household.id, { filter: "any", limit: 500 }),
-    getPurchasesSince(household.id, today, 365),
     getRecipesWithIngredients(household.id),
   ]);
 
@@ -203,31 +177,32 @@ export default async function DashboardPage() {
     .filter((tx) => tx.type === "expense")
     .map((tx) => ({ occurredOn: tx.occurred_on, amount: toMinor(tx.amount) }));
 
-  const dailyGuide = summary?.dailyAllowance ?? null;
+  // Cumulative chart guide uses the period spending limit (density reference).
+  const budgetGuide = summary?.spendingLimit ?? null;
   const seriesByRange = {
     "7d": buildEvolutionSeries({
       today,
       range: "7d",
       expenses: expenseRows,
-      budgetLimit: dailyGuide,
+      budgetLimit: budgetGuide,
     }),
     "30d": buildEvolutionSeries({
       today,
       range: "30d",
       expenses: expenseRows,
-      budgetLimit: dailyGuide,
+      budgetLimit: budgetGuide,
     }),
     "3m": buildEvolutionSeries({
       today,
       range: "3m",
       expenses: expenseRows,
-      budgetLimit: dailyGuide,
+      budgetLimit: budgetGuide,
     }),
     "12m": buildEvolutionSeries({
       today,
       range: "12m",
       expenses: expenseRows,
-      budgetLimit: dailyGuide,
+      budgetLimit: budgetGuide,
     }),
   } satisfies Record<EvolutionRange, ReturnType<typeof buildEvolutionSeries>>;
 
@@ -253,10 +228,33 @@ export default async function DashboardPage() {
 
   const remaining = summary?.remaining ?? null;
   const spendingLimit = summary?.spendingLimit ?? null;
-  const spentPct =
-    spendingLimit !== null && spendingLimit > 0
-      ? Math.round(Math.min(100, Math.max(0, ((summary?.expenses ?? 0) / spendingLimit) * 100)))
+  const remainingPct =
+    spendingLimit !== null && spendingLimit > 0 && remaining !== null
+      ? Math.round(Math.min(100, Math.max(0, (Math.max(remaining, 0) / spendingLimit) * 100)))
       : null;
+
+  // Real prior-period comparison for the insight callout (30d vs previous 30d).
+  const periodLen =
+    budget != null ? Math.max(1, diffDays(budget.start_date, budget.end_date) + 1) : 30;
+  const prevEnd = budget ? addDays(budget.start_date, -1) : addDays(today, -periodLen);
+  const prevStart = addDays(prevEnd, -(periodLen - 1));
+  let prevExpenses = 0;
+  for (const tx of chartTransactions) {
+    if (tx.type !== "expense") continue;
+    if (tx.occurred_on < prevStart || tx.occurred_on > prevEnd) continue;
+    prevExpenses += toMinor(tx.amount);
+  }
+  const currentExpenses = summary?.expenses ?? 0;
+  let insight: string | null = t("dashboard.insightEmpty");
+  if (prevExpenses > 0 && currentExpenses > 0) {
+    const delta = (currentExpenses - prevExpenses) / prevExpenses;
+    const pct = Math.round(Math.abs(delta) * 100);
+    if (pct === 0) insight = t("dashboard.insightSame");
+    else if (delta < 0) insight = t("dashboard.insightLess", { pct });
+    else insight = t("dashboard.insightMore", { pct });
+  } else if (currentExpenses > 0 && prevExpenses === 0) {
+    insight = t("dashboard.insightEmpty");
+  }
 
   const todayTone =
     summary?.todayRemaining === null || summary?.todayRemaining === undefined
@@ -267,93 +265,81 @@ export default async function DashboardPage() {
           : "warn"
         : "default";
 
-  const popularIds = mostPurchased(products, 4);
-  const popularProducts = popularIds
-    .map((entry) => products.find((p) => p.id === entry.productId))
-    .filter((p): p is NonNullable<typeof p> => !!p);
-  const productImages = await signProductImages(popularProducts.map((p) => p.image_path));
-
   const recommended = recipes.find((r) => r.is_favorite) ?? recipes[0] ?? null;
-  const recipeImages = recommended
-    ? await getImageUrls([recommended.image_path])
-    : {};
-
-  const pctFmt = new Intl.NumberFormat(locale === "ro" ? "ro-RO" : "en-GB", {
-    style: "percent",
-    maximumFractionDigits: 0,
-    signDisplay: "exceptZero",
-  });
+  const recipeImages = recommended ? await getImageUrls([recommended.image_path]) : {};
 
   return (
     <>
-      <section className="mb-6 grid gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)] lg:items-center">
+      <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="truncate text-3xl font-semibold tracking-tight text-fg sm:text-[2.25rem]">
-                {t("dashboard.greeting", { name: firstName })}
-              </h1>
-              <p className="mt-2 max-w-xl text-sm text-muted sm:text-[15px]">{t("dashboard.subtitle")}</p>
-            </div>
-            {writer ? (
-              <AddTransactionButton label={t("dashboard.addTransaction")} {...formProps} />
-            ) : null}
+          <h1 className="truncate text-2xl font-semibold tracking-tight text-fg sm:text-[1.75rem]">
+            {t("dashboard.greeting", { name: firstName })}
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-muted">{t("dashboard.subtitle")}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-surface px-3 text-sm font-medium shadow-sm">
+            <CalendarDays size={16} className="text-muted" aria-hidden />
+            <span className="capitalize">{formatMonthLabel(month, locale)}</span>
+            <ChevronDown size={14} className="text-muted" aria-hidden />
           </div>
+          <details className="relative">
+            <summary
+              className="relative inline-flex size-10 list-none items-center justify-center rounded-full border border-border bg-surface text-muted shadow-sm marker:content-none [&::-webkit-details-marker]:hidden"
+              aria-label={t("dashboard.notifications")}
+            >
+              <Bell size={18} aria-hidden />
+              <span className="absolute right-2.5 top-2.5 size-1.5 rounded-full bg-danger" aria-hidden />
+            </summary>
+            <div className="absolute right-0 z-20 mt-2 w-56 rounded-[var(--radius-md)] border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-card)]">
+              {t("dashboard.notificationsEmpty")}
+            </div>
+          </details>
+          <span
+            className="inline-flex size-10 items-center justify-center rounded-full brand-gradient text-sm font-semibold text-brand-fg"
+            title={ctx.displayName}
+          >
+            {avatarLetter(ctx.displayName)}
+          </span>
+          {writer ? (
+            <AddTransactionButton label={t("dashboard.addTransaction")} {...formProps} />
+          ) : null}
         </div>
-        <div className="relative min-h-[12rem] overflow-hidden rounded-[22px] shadow-[var(--shadow-card)] lg:min-h-[13.5rem]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/dashboard-hero.jpg"
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-          <p className="font-script absolute inset-x-0 bottom-0 p-5 text-[1.85rem] leading-tight text-white sm:p-6 sm:text-[2.1rem]">
-            {t("dashboard.heroQuote")}
-          </p>
-        </div>
-      </section>
+      </header>
 
       <div className="flex flex-col gap-5">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SummaryCard
-            tone="blue"
-            icon={<Wallet size={18} aria-hidden />}
-            label={t("dashboard.monthBudget")}
-            value={spendingLimit === null ? "—" : money(spendingLimit)}
-            hint={t("dashboard.monthBudgetHint")}
-            action={
-              admin ? (
-                <Link
-                  href="/settings#budget"
-                  className="inline-flex size-8 items-center justify-center rounded-full text-muted hover:bg-surface-2 hover:text-fg"
-                  aria-label={t("dashboard.editBudget")}
-                >
-                  <Pencil size={14} aria-hidden />
-                </Link>
-              ) : undefined
-            }
-          />
-          <SummaryCard
             tone="green"
             icon={<Wallet size={18} aria-hidden />}
+            label={t("dashboard.available")}
+            value={money(balance.available)}
+            hint={t("dashboard.availableHint")}
+          />
+          <SummaryCard
+            tone="blue"
+            icon={<ShoppingBasket size={18} aria-hidden />}
             label={t("dashboard.monthExpenses")}
             value={money(summary?.expenses ?? 0)}
-            hint={t("dashboard.spentHint")}
-            trailing={
-              spentPct === null ? undefined : (
-                <ProgressRing
-                  value={summary?.expenses ?? 0}
-                  max={spendingLimit ?? 1}
-                  label={`${spentPct}%`}
-                  tone="ok"
-                />
-              )
-            }
           />
           <SummaryCard
             tone="purple"
-            icon={<Wallet size={18} aria-hidden />}
+            icon={<Target size={18} aria-hidden />}
+            label={t("dashboard.paidFromBudget")}
+            value={
+              summary?.dailyAllowance === null || summary?.dailyAllowance === undefined
+                ? "—"
+                : money(summary.dailyAllowance)
+            }
+            hint={
+              tomorrow?.tomorrowAllowance !== null && tomorrow?.tomorrowAllowance !== undefined
+                ? t("dashboard.tomorrowHintShort", { amount: money(tomorrow.tomorrowAllowance) })
+                : undefined
+            }
+          />
+          <SummaryCard
+            tone="orange"
+            icon={<Target size={18} aria-hidden />}
             label={t("dashboard.remainingToSpend")}
             value={remaining === null ? "—" : money(Math.max(remaining, 0))}
             hint={
@@ -361,34 +347,17 @@ export default async function DashboardPage() {
                 ? t("dashboard.noLimitBody")
                 : t("dashboard.remainingOf", { total: money(spendingLimit) })
             }
-          />
-          <SummaryCard
-            tone="orange"
-            icon={<Users size={18} aria-hidden />}
-            label={t("dashboard.membersInBudget", { count: members.length })}
-            value={
-              <span className="flex items-center gap-2">
-                <span className="flex -space-x-2">
-                  {members.slice(0, 4).map((m) => (
-                    <span
-                      key={m.user_id}
-                      title={m.display_name}
-                      className="inline-flex size-9 items-center justify-center rounded-full border-2 border-surface brand-gradient text-[11px] font-semibold text-brand-fg"
-                    >
-                      {avatarLetter(m.display_name)}
-                    </span>
-                  ))}
-                </span>
-                {admin ? (
-                  <Link
-                    href="/settings#members"
-                    className="inline-flex size-9 items-center justify-center rounded-full border border-dashed border-border text-muted hover:text-fg"
-                    aria-label={t("dashboard.addMember")}
-                  >
-                    <Plus size={16} aria-hidden />
-                  </Link>
-                ) : null}
-              </span>
+            trailing={
+              remainingPct === null ? (
+                <ProgressRing value={0} max={1} label="—" tone="orange" />
+              ) : (
+                <ProgressRing
+                  value={Math.max(remaining ?? 0, 0)}
+                  max={spendingLimit ?? 1}
+                  label={`${remainingPct}%`}
+                  tone="orange"
+                />
+              )
             }
           />
         </div>
@@ -409,7 +378,7 @@ export default async function DashboardPage() {
           </Card>
         ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-[1.65fr_1fr]">
+        <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
           <BudgetEvolutionChart seriesByRange={seriesByRange} currency={household.currency} />
           <CategoryDonut
             title={t("dashboard.categories")}
@@ -418,118 +387,31 @@ export default async function DashboardPage() {
             slices={categorySlices}
             centerLabel={t("dashboard.totalSpent")}
             totalLabel={money(summary?.expenses ?? 0)}
+            insight={insight}
           />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
-          <section className="rounded-[var(--radius-lg)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-fg">{t("dashboard.recent")}</h2>
-              <Link
-                href="/transactions"
-                className="inline-flex items-center gap-1 text-xs font-medium text-brand-strong hover:underline"
-              >
-                {t("dashboard.viewAll")} <ArrowRight size={12} aria-hidden />
-              </Link>
-            </div>
-            {recent.length === 0 ? (
-              <EmptyState
-                compact
-                title={t("dashboard.recentEmptyTitle")}
-                body={t("dashboard.recentEmptyBody")}
-                action={
-                  writer ? (
-                    <AddTransactionButton label={t("dashboard.addTransaction")} {...formProps} />
-                  ) : undefined
-                }
-              />
-            ) : (
-              <TransactionList
-                householdId={household.id}
-                currency={household.currency}
-                categories={categories}
-                members={members}
-                currentUserId={ctx.user.id}
-                today={today}
-                grouped={false}
-                transactions={recent.map((tx) => ({
-                  ...tx,
-                  editable: admin || (writer && tx.created_by === ctx.user.id),
-                }))}
-              />
-            )}
-          </section>
-
-          <section className="rounded-[var(--radius-lg)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] sm:p-5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-fg">{t("dashboard.popularProducts")}</h2>
-              <Link
-                href="/products"
-                className="inline-flex items-center gap-1 text-xs font-medium text-brand-strong hover:underline"
-              >
-                {t("dashboard.viewAll")} <ArrowRight size={12} aria-hidden />
-              </Link>
-            </div>
-            {popularProducts.length === 0 ? (
-              <EmptyState compact title={t("dashboard.popularProductsEmpty")} />
-            ) : (
-              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {popularProducts.map((product) => {
-                  const change = priceChangePct(purchases, product.id);
-                  return (
-                    <li key={product.id}>
-                      <Link
-                        href={`/products/${product.id}`}
-                        className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border bg-surface-2/40 p-2.5 transition hover:border-brand/40"
-                      >
-                        <ProductThumb
-                          url={product.image_path ? productImages.get(product.image_path) : null}
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium text-fg">
-                            {product.name}
-                          </span>
-                          <span className="mt-0.5 flex items-center gap-2 text-xs">
-                            <span className="tabular font-semibold text-fg">
-                              {product.last_price === null
-                                ? "—"
-                                : money(toMinor(product.last_price))}
-                            </span>
-                            {change !== null ? (
-                              <span className={change <= 0 ? "text-ok" : "text-danger"}>
-                                {pctFmt.format(change)}
-                              </span>
-                            ) : null}
-                          </span>
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {plannedLists.length > 0 ? (
-              <div className="mt-4 border-t border-border pt-3">
-                <p className="mb-2 text-xs font-medium text-muted">{t("dashboard.quickLists")}</p>
-                <ul className="space-y-1.5">
-                  {plannedLists.slice(0, 3).map((list) => (
-                    <li key={list.id}>
-                      <Link
-                        href={`/shopping-lists/${list.id}`}
-                        className="flex min-h-9 items-center justify-between gap-2 rounded-[var(--radius-md)] px-1 text-sm hover:bg-surface-2"
-                      >
-                        <span className="truncate font-medium">{list.name}</span>
-                        <span className="text-xs text-muted">
-                          {list.checked_count}/{list.item_count}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </section>
-
+          <RecentPurchases
+            title={t("dashboard.recent")}
+            viewAll={t("dashboard.viewAll")}
+            emptyTitle={t("dashboard.recentEmptyTitle")}
+            emptyBody={t("dashboard.recentEmptyBody")}
+            transactions={recent}
+            categories={categories}
+            currency={household.currency}
+            locale={locale}
+            t={t}
+            today={today}
+          />
+          <QuickLists
+            title={t("dashboard.quickLists")}
+            viewAll={t("dashboard.viewAll")}
+            emptyTitle={t("dashboard.quickListsEmpty")}
+            addLabel={t("dashboard.addToList")}
+            lists={plannedLists}
+            canAdd={writer}
+          />
           <RecipePromo
             title={t("dashboard.recipePromoTitle")}
             body={t("dashboard.recipePromoBody")}
@@ -549,16 +431,6 @@ export default async function DashboardPage() {
             }
           />
         </div>
-
-        <Section title={t("dashboard.available")}>
-          <Card>
-            <Stat
-              label={t("dashboard.available")}
-              value={money(balance.available)}
-              hint={t("dashboard.availableHint")}
-            />
-          </Card>
-        </Section>
 
         {summary ? (
           <Section title={t("dashboard.spendingPace")}>
