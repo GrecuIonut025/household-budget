@@ -27,7 +27,7 @@ export function ShoppingItemList({
   }
 
   return (
-    <ul className="divide-y divide-border rounded-2xl border border-border bg-surface">
+    <ul className="divide-y divide-border rounded-[var(--radius-lg)] border border-border bg-surface">
       {items.map((item) => {
         const unitPrice = item.actual_unit_price ?? item.estimated_unit_price;
         const lineTotal = unitPrice === null ? null : toMinor(unitPrice * item.quantity);

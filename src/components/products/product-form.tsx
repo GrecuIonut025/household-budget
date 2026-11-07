@@ -116,7 +116,7 @@ function ProductFormBody({ householdId, retailers, product, imageUrl, initialBar
       <input type="hidden" name="dataSource" value={dataSource} />
 
       <div className="flex items-center gap-4">
-        <div className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-2xl border border-border bg-surface-2 text-muted">
+        <div className="grid size-24 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface-2 text-muted">
           {uploading ? (
             <Loader2 size={24} className="animate-spin" aria-label={t("products.imageUploading")} />
           ) : preview ? (
@@ -170,7 +170,7 @@ function ProductFormBody({ householdId, retailers, product, imageUrl, initialBar
       </Field>
 
       {!product && firstBarcode ? (
-        <div className="space-y-2 rounded-xl border border-border bg-surface-2 p-3">
+        <div className="space-y-2 rounded-[var(--radius-md)] border border-border bg-surface-2 p-3">
           <button type="button" onClick={lookup} disabled={offState === "loading"} className={buttonClass("secondary", "w-full")}>
             {offState === "loading" ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <Search size={18} aria-hidden />}
             {t("products.offLookup")}
@@ -273,11 +273,11 @@ function ProductFormBody({ householdId, retailers, product, imageUrl, initialBar
       </Field>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        <label className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 text-sm">
+        <label className="flex min-h-11 items-center gap-3 rounded-[var(--radius-md)] border border-border px-3 text-sm">
           <input type="checkbox" name="isFavorite" defaultChecked={product?.is_favorite} className="size-5 accent-brand" />
           {t("products.favorite")}
         </label>
-        <label className="flex min-h-11 items-center gap-3 rounded-xl border border-border px-3 text-sm">
+        <label className="flex min-h-11 items-center gap-3 rounded-[var(--radius-md)] border border-border px-3 text-sm">
           <input type="checkbox" name="isFrequent" defaultChecked={product?.is_frequent} className="size-5 accent-brand" />
           {t("products.frequent")}
         </label>

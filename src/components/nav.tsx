@@ -6,32 +6,48 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n/provider";
-import { isActive, NAV_ITEMS } from "@/lib/nav";
+import { isActive, NAV_GROUPS, NAV_ITEMS } from "@/lib/nav";
 import { Sheet } from "./sheet";
 
 export function SidebarNav() {
   const pathname = usePathname();
   const { t } = useI18n();
   return (
-    <nav aria-label={t("nav.primary")} className="flex flex-col gap-1">
-      {NAV_ITEMS.map((item) => {
-        const active = isActive(pathname, item.href);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={clsx(
-              "flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition",
-              active ? "bg-brand-soft text-brand-strong" : "text-muted hover:bg-surface-2 hover:text-fg",
-            )}
-          >
-            <Icon size={18} aria-hidden />
-            {t(item.label)}
-          </Link>
-        );
-      })}
+    <nav aria-label={t("nav.primary")} className="flex flex-col gap-5">
+      {NAV_GROUPS.map((group) => (
+        <div key={group.id}>
+          <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted/80">
+            {t(group.label)}
+          </p>
+          <ul className="flex flex-col gap-0.5">
+            {group.items.map((item) => {
+              const active = isActive(pathname, item.href);
+              const Icon = item.icon;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={clsx(
+                      "flex min-h-10 items-center gap-2.5 rounded-[var(--radius-md)] px-3 text-sm font-medium transition",
+                      active
+                        ? "bg-brand-soft text-brand-strong"
+                        : "text-muted hover:bg-surface-2 hover:text-fg",
+                    )}
+                  >
+                    <Icon
+                      size={17}
+                      aria-hidden
+                      strokeWidth={active ? 2.25 : 2}
+                    />
+                    {t(item.label)}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
     </nav>
   );
 }
@@ -60,35 +76,73 @@ export function BottomNav() {
           const active = isActive(pathname, item.href);
           const Icon = item.icon;
           return (
-            <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={tab(active)}>
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={tab(active)}
+            >
               <Icon size={22} aria-hidden strokeWidth={active ? 2.4 : 2} />
               <span className="max-w-full truncate">{t(item.label)}</span>
             </Link>
           );
         })}
-        <button type="button" onClick={() => setMoreOpen(true)} className={tab(secondaryActive)} aria-haspopup="dialog">
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className={tab(secondaryActive)}
+          aria-haspopup="dialog"
+        >
           <Ellipsis size={22} aria-hidden />
           <span>{t("nav.more")}</span>
         </button>
       </nav>
-      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title={t("nav.more")}>
-        <ul className="grid gap-1">
-          {secondary.map((item) => {
-            const Icon = item.icon;
+      <Sheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        title={t("nav.more")}
+      >
+        <div className="grid gap-5">
+          {NAV_GROUPS.map((group) => {
+            const items = group.items.filter((i) => !i.primary);
+            if (items.length === 0) return null;
             return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={() => setMoreOpen(false)}
-                  className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium hover:bg-surface-2"
-                >
-                  <Icon size={20} aria-hidden className="text-muted" />
-                  {t(item.label)}
-                </Link>
-              </li>
+              <div key={group.id}>
+                <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted/80">
+                  {t(group.label)}
+                </p>
+                <ul className="grid gap-0.5">
+                  {items.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(pathname, item.href);
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          onClick={() => setMoreOpen(false)}
+                          aria-current={active ? "page" : undefined}
+                          className={clsx(
+                            "flex min-h-12 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm font-medium",
+                            active
+                              ? "bg-brand-soft text-brand-strong"
+                              : "hover:bg-surface-2",
+                          )}
+                        >
+                          <Icon
+                            size={18}
+                            aria-hidden
+                            className={active ? undefined : "text-muted"}
+                          />
+                          {t(item.label)}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             );
           })}
-        </ul>
+        </div>
       </Sheet>
     </>
   );

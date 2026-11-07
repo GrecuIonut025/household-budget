@@ -33,19 +33,19 @@ export function Sheet({
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
-      className="m-0 mt-auto max-h-[92dvh] w-full max-w-none overflow-y-auto rounded-t-3xl border border-border bg-surface p-0 text-fg shadow-2xl sm:m-auto sm:max-w-lg sm:rounded-3xl"
+      className="m-0 mt-auto max-h-[92dvh] w-full max-w-none overflow-y-auto rounded-t-[var(--radius-lg)] border border-border bg-surface p-0 text-fg shadow-lg sm:m-auto sm:max-w-lg sm:rounded-[var(--radius-lg)]"
     >
       {open ? (
         <div className="p-5 pb-8 sm:pb-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold tracking-tight">{title}</h2>
             <button
               type="button"
               onClick={onClose}
               aria-label={t("common.close")}
-              className="grid size-10 place-items-center rounded-full text-muted hover:bg-surface-2"
+              className="grid size-9 place-items-center rounded-[var(--radius-md)] text-muted hover:bg-surface-2 hover:text-fg"
             >
-              <X size={20} aria-hidden />
+              <X size={18} aria-hidden />
             </button>
           </div>
           {children}

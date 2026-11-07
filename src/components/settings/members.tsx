@@ -21,7 +21,7 @@ export function MemberList({
   const viewerIsOwner = viewerRole === "owner";
 
   return (
-    <ul className="divide-y divide-border rounded-xl border border-border">
+    <ul className="divide-y divide-border rounded-[var(--radius-md)] border border-border">
       {members.map((m) => {
         const isSelf = m.user_id === viewerId;
         const roleLocked = m.role === "owner" || !isAdmin(viewerRole) || (m.role === "admin" && !viewerIsOwner);

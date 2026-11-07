@@ -49,7 +49,7 @@ export function RecipeCostPanel({ householdId, baseServings, ingredients, pricin
     <div className="space-y-4">
       <Card>
         <CardTitle>{t("recipes.servings")}</CardTitle>
-        <div role="radiogroup" aria-label={t("recipes.servings")} className="grid auto-cols-fr grid-flow-col gap-1 rounded-xl bg-surface-2 p-1">
+        <div role="radiogroup" aria-label={t("recipes.servings")} className="grid auto-cols-fr grid-flow-col gap-1 rounded-[var(--radius-md)] bg-surface-2 p-1">
           {options.map((n) => (
             <button
               key={n}
@@ -69,7 +69,7 @@ export function RecipeCostPanel({ householdId, baseServings, ingredients, pricin
         </div>
       </Card>
 
-      <section aria-label={t("recipes.cost.title")} className="rounded-2xl border border-border bg-gradient-to-br from-brand-soft to-surface p-4 shadow-card sm:p-5">
+      <section aria-label={t("recipes.cost.title")} className="rounded-[var(--radius-lg)] border border-border bg-gradient-to-br from-brand-soft to-surface p-4 sm:p-5">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-muted">{t("recipes.cost.total")}</p>
@@ -138,7 +138,7 @@ export function RecipeCostPanel({ householdId, baseServings, ingredients, pricin
           <p className="mb-3 text-xs text-muted">{t("recipes.baskets.hint")}</p>
           <ul className="space-y-2">
             {cost.baskets.map((b, index) => (
-              <li key={b.retailerId} className="flex items-center justify-between gap-3 rounded-xl bg-surface-2 px-3 py-2.5">
+              <li key={b.retailerId} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] bg-surface-2 px-3 py-2.5">
                 <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
                   <Store size={16} className="shrink-0 text-muted" aria-hidden />
                   <span className="truncate">{b.retailerName}</span>
@@ -148,7 +148,7 @@ export function RecipeCostPanel({ householdId, baseServings, ingredients, pricin
               </li>
             ))}
             {cost.partialBaskets.map((b) => (
-              <li key={b.retailerId} className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border px-3 py-2.5">
+              <li key={b.retailerId} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-dashed border-border px-3 py-2.5">
                 <span className="flex min-w-0 flex-col text-sm">
                   <span className="truncate font-medium">{b.retailerName}</span>
                   <span className="text-xs text-muted">{t("recipes.baskets.missing", { count: b.missingCount })}</span>
@@ -217,7 +217,7 @@ function IngredientRow({ line, householdId, currency, canWrite }: { line: Ingred
       {sourceNote ? <p className="mt-1 text-xs text-muted">{sourceNote}</p> : null}
 
       {hasDetails ? (
-        <details className="mt-2 rounded-xl bg-surface-2 px-3 py-2 text-sm">
+        <details className="mt-2 rounded-[var(--radius-md)] bg-surface-2 px-3 py-2 text-sm">
           <summary className="min-h-6 cursor-pointer text-xs font-medium text-muted">{t("recipes.cost.details")}</summary>
           <div className="mt-2 space-y-3">
             {line.unknownReason ? (

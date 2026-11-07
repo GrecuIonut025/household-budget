@@ -5,7 +5,7 @@ import type { Translate } from "@/lib/i18n";
 export function ProductsTabs({ active, t }: { active: "catalogue" | "rankings"; t: Translate }) {
   const tab = "flex min-h-11 flex-1 items-center justify-center rounded-lg px-3 text-sm font-medium transition";
   return (
-    <nav aria-label={t("products.title")} className="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
+    <nav aria-label={t("products.title")} className="mb-4 grid grid-cols-2 gap-1 rounded-[var(--radius-md)] bg-surface-2 p-1">
       <Link
         href="/products"
         aria-current={active === "catalogue" ? "page" : undefined}

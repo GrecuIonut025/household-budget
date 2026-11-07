@@ -1,45 +1,52 @@
 @import "tailwindcss";
 
+/*
+  Design tokens — see docs/DESIGN.md
+  Light is the default; .dark overrides (class set by ThemeProvider / inline boot script).
+*/
+
 :root {
-  --bg: #f4f6f8;
+  --bg: #f5f6f8;
   --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --border: #e2e6ec;
-  --fg: #0b1220;
-  --muted: #5b6678;
-  --brand: #0d6e63;
-  --brand-strong: #0a574e;
+  --surface-2: #eef0f3;
+  --border: #e3e6eb;
+  --fg: #12151a;
+  --muted: #667085;
+  --brand: #0f6b63;
+  --brand-strong: #0b534d;
   --brand-fg: #ffffff;
-  --brand-soft: #d9f3ee;
-  --danger: #cf2a4a;
-  --danger-soft: #fde7ec;
-  --warn: #b45309;
-  --warn-soft: #fef0d9;
-  --ok: #0b7a55;
-  --ok-soft: #dcf5ea;
+  --brand-soft: #e4f3f1;
+  --danger: #c0354a;
+  --danger-soft: #fce8ec;
+  --warn: #9a6700;
+  --warn-soft: #fef3d7;
+  --ok: #0d7a4f;
+  --ok-soft: #e3f6ed;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --space-section: 1.5rem;
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0a0f17;
-    --surface: #121a26;
-    --surface-2: #1a2434;
-    --border: #243044;
-    --fg: #eef2f8;
-    --muted: #98a4b8;
-    --brand: #2fb5a3;
-    --brand-strong: #52cbb9;
-    --brand-fg: #04201c;
-    --brand-soft: #0f2f2b;
-    --danger: #ff6b86;
-    --danger-soft: #35121b;
-    --warn: #f5b25b;
-    --warn-soft: #33230d;
-    --ok: #4fd1a1;
-    --ok-soft: #0e2d22;
-    color-scheme: dark;
-  }
+html.dark {
+  --bg: #0b0d10;
+  --surface: #13161c;
+  --surface-2: #1b2028;
+  --border: #2a313c;
+  --fg: #eceff3;
+  --muted: #9aa3b2;
+  --brand: #3dbaad;
+  --brand-strong: #6fd0c5;
+  --brand-fg: #04201c;
+  --brand-soft: #12322e;
+  --danger: #f07186;
+  --danger-soft: #2f1419;
+  --warn: #e0b45a;
+  --warn-soft: #2c220f;
+  --ok: #4ec995;
+  --ok-soft: #0f2a1f;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -61,7 +68,9 @@
   --color-ok-soft: var(--ok-soft);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.12);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
 }
 
 html {
@@ -81,10 +90,15 @@ body {
 }
 
 dialog::backdrop {
-  background: rgb(5 10 20 / 0.55);
-  backdrop-filter: blur(2px);
+  background: rgb(8 10 14 / 0.48);
 }
 
 .safe-bottom {
   padding-bottom: max(env(safe-area-inset-bottom), 0px);
+}
+
+/* Subtle focus ring shared by interactive chrome */
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand) 55%, transparent);
+  outline-offset: 2px;
 }

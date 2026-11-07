@@ -45,7 +45,7 @@ export function TransactionList({ transactions, categories, members, currency, g
                 {group.date === rest.today ? t("common.today") : formatDateLong(group.date, locale)}
               </h3>
             ) : null}
-            <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
+            <ul className="divide-y divide-border overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface">
               {group.rows.map((tx) => {
                 const category = tx.category_id ? categoryById.get(tx.category_id) : undefined;
                 const who = tx.paid_by ? memberById.get(tx.paid_by) : undefined;

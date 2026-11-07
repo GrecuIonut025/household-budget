@@ -27,7 +27,7 @@ function Segmented<T extends string>({
   label: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 rounded-xl bg-surface-2 p-1">
+    <div role="radiogroup" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 rounded-[var(--radius-md)] bg-surface-2 p-1">
       <input type="hidden" name={name} value={value} />
       {options.map((o) => (
         <button

@@ -106,7 +106,7 @@ export function GoalsManager({
         {goals.map(({ goal, projection }) => {
           const manage = isAdmin(role) || (writer && (goal.scope === "shared" || goal.owner_id === userId));
           return (
-            <li key={goal.id} className="space-y-3 rounded-xl border border-border p-3">
+            <li key={goal.id} className="space-y-3 rounded-[var(--radius-md)] border border-border p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{goal.name}</p>

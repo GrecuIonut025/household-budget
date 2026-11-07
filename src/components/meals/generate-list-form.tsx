@@ -59,7 +59,7 @@ export function GenerateListButton({
             <legend className="mb-2 text-sm font-medium">{t("shopping.strategies")}</legend>
             <div className="space-y-2">
               {STRATEGIES.map((kind) => (
-                <label key={kind} className="flex items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm">
+                <label key={kind} className="flex items-center gap-2 rounded-[var(--radius-md)] border border-border px-3 py-2.5 text-sm">
                   <input
                     type="radio"
                     name="strategyChoice"

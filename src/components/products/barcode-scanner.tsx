@@ -134,7 +134,7 @@ function ScannerBody({ onCode, busy, error }: { onCode: (code: string) => void; 
 
   return (
     <div className="space-y-4">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-black">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[var(--radius-lg)] bg-black">
         <video ref={video} playsInline muted className="size-full object-cover" />
         {camera === "scanning" ? (
           <div aria-hidden className="pointer-events-none absolute inset-x-8 top-1/2 h-0.5 -translate-y-1/2 rounded bg-brand shadow-[0_0_12px_2px] shadow-brand/60" />

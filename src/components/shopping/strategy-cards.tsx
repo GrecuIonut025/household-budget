@@ -22,7 +22,7 @@ export function StrategyCards({
       <CardTitle>{t("shopping.strategies")}</CardTitle>
       <ul className="space-y-3">
         {strategies.map((s) => (
-          <li key={s.kind} className="rounded-xl border border-border bg-surface-2/50 px-3 py-3">
+          <li key={s.kind} className="rounded-[var(--radius-md)] border border-border bg-surface-2/50 px-3 py-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium">{t(`shopping.strategy.${s.kind}` as MessageKey)}</p>

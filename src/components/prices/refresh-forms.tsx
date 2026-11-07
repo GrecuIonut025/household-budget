@@ -14,7 +14,7 @@ function RefreshResult({ state }: { state: PriceActionState }) {
       {state.error ? <Alert tone="danger">{state.error}</Alert> : null}
       {state.ok && state.message ? <Alert tone="ok">{state.message}</Alert> : null}
       {state.warnings && state.warnings.length > 0 ? (
-        <div className="rounded-xl border border-border bg-surface-2 p-3 text-xs text-muted">
+        <div className="rounded-[var(--radius-md)] border border-border bg-surface-2 p-3 text-xs text-muted">
           <p className="mb-1 font-medium text-fg">{t("prices.warnings")}</p>
           <ul className="list-inside list-disc space-y-0.5">
             {state.warnings.map((w) => (
