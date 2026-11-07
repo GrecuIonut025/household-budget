@@ -119,6 +119,7 @@ export const en = {
   "dashboard.allowanceHint": "{amount} ÷ {days}, before today's spending",
   "dashboard.daysLeft": "{days} left in the period",
   "dashboard.tomorrowAllowance": "Tomorrow's daily",
+  "dashboard.tomorrowHint": "{amount} ÷ {days}, after today's spending",
   "dashboard.allowanceDeltaUp": "{amount} more than today",
   "dashboard.allowanceDeltaDown": "{amount} less than today",
   "dashboard.allowanceDeltaSame": "Same as today",
