@@ -43,3 +43,10 @@ export function formatMoney(minor: Minor, currency = "RON", locale = "ro"): stri
 export function localeTag(locale: string): string {
   return locale === "ro" ? "ro-RO" : "en-GB";
 }
+
+/** Plain editable representation of an amount for form inputs (no grouping, locale decimal separator). */
+export function moneyInputValue(amount: number | null | undefined, locale: string): string {
+  if (amount === null || amount === undefined) return "";
+  const fixed = fromMinor(toMinor(amount)).toFixed(2).replace(/\.00$/, "");
+  return locale === "ro" ? fixed.replace(".", ",") : fixed;
+}

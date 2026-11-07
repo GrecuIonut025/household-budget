@@ -26,3 +26,13 @@ describe("money", () => {
     expect(formatMoney(123456, "RON", "ro")).toContain("RON");
   });
 });
+
+describe("moneyInputValue", () => {
+  it("renders editable values with the locale decimal separator", async () => {
+    const { moneyInputValue } = await import("./money");
+    expect(moneyInputValue(12.5, "ro")).toBe("12,50");
+    expect(moneyInputValue(12.5, "en")).toBe("12.50");
+    expect(moneyInputValue(100, "ro")).toBe("100");
+    expect(moneyInputValue(null, "ro")).toBe("");
+  });
+});

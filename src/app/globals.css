@@ -1,26 +1,90 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --border: #e2e6ec;
+  --fg: #0b1220;
+  --muted: #5b6678;
+  --brand: #0d6e63;
+  --brand-strong: #0a574e;
+  --brand-fg: #ffffff;
+  --brand-soft: #d9f3ee;
+  --danger: #cf2a4a;
+  --danger-soft: #fde7ec;
+  --warn: #b45309;
+  --warn-soft: #fef0d9;
+  --ok: #0b7a55;
+  --ok-soft: #dcf5ea;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #0a0f17;
+    --surface: #121a26;
+    --surface-2: #1a2434;
+    --border: #243044;
+    --fg: #eef2f8;
+    --muted: #98a4b8;
+    --brand: #2fb5a3;
+    --brand-strong: #52cbb9;
+    --brand-fg: #04201c;
+    --brand-soft: #0f2f2b;
+    --danger: #ff6b86;
+    --danger-soft: #35121b;
+    --warn: #f5b25b;
+    --warn-soft: #33230d;
+    --ok: #4fd1a1;
+    --ok-soft: #0e2d22;
+    color-scheme: dark;
   }
 }
 
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -12px rgb(15 23 42 / 0.12);
+}
+
+html {
+  background: var(--bg);
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  overscroll-behavior-y: none;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+dialog::backdrop {
+  background: rgb(5 10 20 / 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 0px);
 }
