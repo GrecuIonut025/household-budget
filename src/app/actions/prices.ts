@@ -8,15 +8,16 @@ import { requireAppContext } from "@/lib/data/context";
 import { getProducts } from "@/lib/data/products";
 import { getRetailersWithMonitorIds, listPriceDetails } from "@/lib/data/prices";
 import { canWrite } from "@/lib/data/types";
-import { lidlAdapter, monitorAdapter } from "@/lib/prices/adapters";
+import { lidlAdapter, monitorAdapter, productDraftFromLidlOffer } from "@/lib/prices/adapters";
 import { matchOffer, manualMatch } from "@/lib/prices/matching";
 import { parseSize } from "@/lib/prices/normalize";
-import type { AdapterOffer, MatchCandidate } from "@/lib/prices/types";
+import { AUTO_LINK_THRESHOLD, REVIEW_THRESHOLD, type AdapterOffer, type MatchCandidate } from "@/lib/prices/types";
 import { computeUnitPrice, computeUnitPriceFromRaw } from "@/lib/prices/unit-price";
 import { createClient } from "@/lib/supabase/server";
 
 export interface PriceActionState extends ActionState {
   imported?: number;
+  created?: number;
   warnings?: string[];
 }
 
@@ -189,34 +190,257 @@ export async function refreshMonitorPrices(_: PriceActionState, formData: FormDa
   }
 }
 
-/** Pull Lidl's official daily XLSB and match against the catalogue. */
+type LidlWorkItem = {
+  offer: AdapterOffer;
+  productId: string;
+  method: "barcode" | "name" | "manual" | "adapter_ref";
+  confidence: number;
+  verified: boolean;
+  created: boolean;
+};
+
+/**
+ * Pull Lidl's official daily XLSB.
+ * High-confidence matches update prices on existing catalogue rows; unmatched rows
+ * (including an empty catalogue) are imported as products (`data_source = lidl_xlsb`)
+ * with preferred retailer Lidl, then priced from the file. Prices are never invented.
+ */
 export async function refreshLidlPrices(_: PriceActionState, formData: FormData): Promise<PriceActionState> {
   const householdId = str(formData, "householdId");
   const { ctx, t, allowed } = await requireWriter(householdId);
   if (!allowed) return { error: t("common.noPermission") };
 
-  const [products, retailers] = await Promise.all([getProducts(householdId, { filter: "any" }), getRetailersWithMonitorIds()]);
-  const tracked = products.filter((p) => !p.is_archived);
-  if (tracked.length === 0) return { error: t("prices.noProducts") };
-
   const result = await lidlAdapter.fetchOffers({});
-  if (!result.ok && result.offers.length === 0) {
-    return { error: t("prices.adapterFailed", { source: lidlAdapter.label }), warnings: result.warnings };
+  if (!result.ok || result.offers.length === 0) {
+    const detail = result.ok ? undefined : result.error;
+    return {
+      error: detail
+        ? t("prices.adapterFailedDetail", { source: lidlAdapter.label, detail })
+        : t("prices.adapterFailed", { source: lidlAdapter.label }),
+      warnings: result.warnings,
+    };
   }
 
-  // Only keep Lidl offers that plausibly match something we track (avoid dumping 2k rows).
+  const [products, retailers] = await Promise.all([
+    getProducts(householdId, { filter: "any", limit: 10_000 }),
+    getRetailersWithMonitorIds(),
+  ]);
+  const lidlRetailer = retailers.find((r) => r.slug === "lidl");
+  if (!lidlRetailer) return { error: t("prices.adapterFailed", { source: lidlAdapter.label }) };
+
+  const tracked = products.filter((p) => !p.is_archived);
   const candidates = toCandidates(tracked, retailers);
-  const matchedOffers = result.offers.filter((o) => matchOffer(o, candidates).productId);
+  const existingPrices = await listPriceDetails(householdId);
+  const priorByRef = new Map(
+    existingPrices.filter((e) => e.external_ref).map((e) => [e.external_ref as string, e.product_id]),
+  );
+  const productByName = new Map(tracked.map((p) => [p.name.toLowerCase(), p.id]));
+
+  const warnings: string[] = [...result.warnings];
+  const linked: LidlWorkItem[] = [];
+  /** Drafts pending insert, keyed by lower(name) so one catalogue row covers duplicate file lines. */
+  const pendingByName = new Map<
+    string,
+    { draft: NonNullable<ReturnType<typeof productDraftFromLidlOffer>>; offers: AdapterOffer[] }
+  >();
+
+  for (const offer of result.offers) {
+    if (!(offer.price > 0)) continue;
+
+    const decision = matchOffer(offer, candidates, {
+      priorProductId: priorByRef.get(offer.externalRef) ?? null,
+    });
+
+    if (decision.productId && decision.confidence >= REVIEW_THRESHOLD) {
+      if (decision.needsReview) {
+        warnings.push(`Uncertain match for “${offer.nameRaw}” → review suggested.`);
+      }
+      linked.push({
+        offer,
+        productId: decision.productId,
+        method: decision.method,
+        confidence: decision.confidence,
+        verified: !decision.needsReview,
+        created: false,
+      });
+      continue;
+    }
+
+    const draft = productDraftFromLidlOffer(offer);
+    if (!draft) continue;
+    const key = draft.name.toLowerCase();
+    const existingId = productByName.get(key);
+    if (existingId) {
+      linked.push({
+        offer,
+        productId: existingId,
+        method: "name",
+        confidence: AUTO_LINK_THRESHOLD,
+        verified: true,
+        created: false,
+      });
+      continue;
+    }
+    const pending = pendingByName.get(key);
+    if (pending) pending.offers.push(offer);
+    else pendingByName.set(key, { draft, offers: [offer] });
+  }
+
+  const supabase = await createClient();
+  let created = 0;
 
   try {
-    const { imported, warnings } = await ingestOffers(householdId, ctx.user.id, matchedOffers, tracked, retailers);
+    const pendingEntries = [...pendingByName.values()];
+    for (let i = 0; i < pendingEntries.length; i += 100) {
+      const chunk = pendingEntries.slice(i, i + 100);
+      const rows = chunk.map(({ draft }) => ({
+        household_id: householdId,
+        name: draft.name,
+        brand: draft.brand,
+        category: draft.category,
+        unit: draft.unit,
+        package_size: draft.packageSize,
+        package_unit: draft.packageUnit,
+        preferred_retailer_id: lidlRetailer.id,
+        data_source: draft.dataSource,
+        created_by: ctx.user.id,
+      }));
+      const { data, error } = await supabase.from("products").insert(rows).select("id, name");
+      if (error) {
+        // Fall back to one-by-one so a single conflict does not abort the whole refresh.
+        for (const { draft, offers } of chunk) {
+          const { data: one, error: oneErr } = await supabase
+            .from("products")
+            .insert({
+              household_id: householdId,
+              name: draft.name,
+              brand: draft.brand,
+              category: draft.category,
+              unit: draft.unit,
+              package_size: draft.packageSize,
+              package_unit: draft.packageUnit,
+              preferred_retailer_id: lidlRetailer.id,
+              data_source: draft.dataSource,
+              created_by: ctx.user.id,
+            })
+            .select("id")
+            .single();
+          let productId = typeof one?.id === "string" ? one.id : null;
+          let didCreate = false;
+          if (oneErr || !productId) {
+            const { data: again } = await supabase
+              .from("products")
+              .select("id")
+              .eq("household_id", householdId)
+              .ilike("name", draft.name.replace(/[%_]/g, "\\$&"))
+              .is("brand", null)
+              .maybeSingle();
+            productId = typeof again?.id === "string" ? again.id : null;
+            if (!productId) {
+              warnings.push(`Could not create “${draft.name}”: ${oneErr?.message ?? "missing id"}`);
+              continue;
+            }
+          } else {
+            didCreate = true;
+            created += 1;
+          }
+          productByName.set(draft.name.toLowerCase(), productId);
+          for (const offer of offers) {
+            linked.push({
+              offer,
+              productId,
+              method: "adapter_ref",
+              confidence: 1,
+              verified: true,
+              created: didCreate,
+            });
+          }
+        }
+        continue;
+      }
+
+      for (const row of data ?? []) {
+        const name = row.name as string;
+        const productId = row.id as string;
+        productByName.set(name.toLowerCase(), productId);
+        const pending = pendingByName.get(name.toLowerCase());
+        if (!pending) continue;
+        created += 1;
+        for (const offer of pending.offers) {
+          linked.push({
+            offer,
+            productId,
+            method: "adapter_ref",
+            confidence: 1,
+            verified: true,
+            created: true,
+          });
+        }
+      }
+    }
+
+    // Prefer the latest observation when the file repeats the same external ref.
+    const byRef = new Map<string, LidlWorkItem>();
+    for (const item of linked) byRef.set(item.offer.externalRef, item);
+    const work = [...byRef.values()];
+
+    let imported = 0;
+    // Existing catalogue matches: one-by-one so alerts still evaluate.
+    for (const item of work.filter((w) => !w.created)) {
+      await upsertOffer({
+        householdId,
+        userId: ctx.user.id,
+        productId: item.productId,
+        retailerId: lidlRetailer.id,
+        offer: item.offer,
+        method: item.method,
+        confidence: item.confidence,
+        verified: item.verified,
+      });
+      imported += 1;
+    }
+
+    // Fresh Lidl imports have no alerts yet — batch insert prices.
+    const fresh = work.filter((w) => w.created);
+    for (let i = 0; i < fresh.length; i += 100) {
+      const chunk = fresh.slice(i, i + 100);
+      const payloads = chunk.map((item) => {
+        const unit =
+          computeUnitPrice(item.offer.price, parseSize(item.offer.nameRaw) ?? parseSize(item.offer.unitRaw)) ?? null;
+        return {
+          household_id: householdId,
+          product_id: item.productId,
+          retailer_id: lidlRetailer.id,
+          store_id: null,
+          price: item.offer.price,
+          currency: item.offer.currency,
+          unit_price: unit?.unitPrice ?? null,
+          unit_label: unit?.unitLabel ?? null,
+          is_promo: item.offer.isPromo,
+          loyalty_required: item.offer.loyaltyRequired,
+          source: "adapter" as const,
+          match_method: item.method,
+          match_confidence: item.confidence,
+          is_verified: item.verified,
+          external_ref: item.offer.externalRef,
+          source_url: item.offer.sourceUrl,
+          observed_at: item.offer.observedAt,
+          created_by: ctx.user.id,
+        };
+      });
+      const { error: priceError } = await supabase.from("product_prices").insert(payloads);
+      if (priceError) throw priceError;
+      imported += chunk.length;
+    }
+
     revalidatePath("/price-comparison");
     revalidatePath("/products");
     return {
       ok: true,
-      message: t("prices.imported", { count: imported }),
+      message: t("prices.lidlImported", { prices: imported, products: created }),
       imported,
-      warnings: [...result.warnings, ...warnings].slice(0, 12),
+      created,
+      warnings: warnings.slice(0, 12),
     };
   } catch (err) {
     return { error: describeDbError(err as { message: string; code?: string }, t) };

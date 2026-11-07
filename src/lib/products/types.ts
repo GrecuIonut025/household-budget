@@ -20,7 +20,7 @@ export const PRODUCT_CATEGORIES = [
 ] as const;
 export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
 
-export type ProductDataSource = "manual" | "open_food_facts";
+export type ProductDataSource = "manual" | "open_food_facts" | "lidl_xlsb";
 
 export interface ProductRow {
   id: string;

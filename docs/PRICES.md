@@ -8,7 +8,7 @@ personal price alerts. Prices are **never invented** — only adapter observatio
 | Adapter | Retailers | Role |
 | --- | --- | --- |
 | **Monitorul Prețurilor** (`monitor`) | All 7 seeded chains | On-demand pull for catalogue names near a UAT / lat-lon (default Cluj-Napoca). XML `pmonsvc`, no EAN. |
-| **Lidl daily XLSB** (`lidl_xlsb`) | Lidl | Official national permanent-range file. Matched only against products the household already tracks. |
+| **Lidl daily XLSB** (`lidl_xlsb`) | Lidl | Official national permanent-range file. High-confidence matches update prices on existing catalogue products; unmatched rows (including an empty catalogue) are imported as products (`data_source = lidl_xlsb`, preferred retailer Lidl) then priced from the file. Prices are never invented. |
 | **Open Food Facts** (`open_food_facts`) | none | Barcode **metadata** only (ODbL). Never emits prices; used to enrich matching when a GTIN is known. |
 
 Matching order (`src/lib/prices/matching.ts`): EAN → prior `external_ref` → brand+size+name → fuzzy. Confidence

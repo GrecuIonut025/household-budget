@@ -1,6 +1,6 @@
 -- My Products: preference columns, purchase recording through the budget path, draft lists, barcode rules, storage scope.
 begin;
-select plan(24);
+select plan(26);
 select tests.seed_fixture();
 
 insert into public.products (id, household_id, name) values (tests.id('yogurt'), tests.id('hhA'), 'Yogurt 400g');
@@ -15,6 +15,10 @@ select lives_ok($$ update public.products set is_favorite = true, is_frequent = 
   'a member can set favorite, frequent and preferred supermarket');
 select throws_ok($$ update public.products set data_source = 'scraped' where id = tests.id('yogurt') $$, '23514', null,
   'data_source only accepts known values');
+select lives_ok($$ update public.products set data_source = 'lidl_xlsb' where id = tests.id('yogurt') $$,
+  'data_source accepts lidl_xlsb for adapter-imported catalogue rows');
+select lives_ok($$ update public.products set data_source = 'manual' where id = tests.id('yogurt') $$,
+  'data_source can return to manual');
 select tests.as_user('carol');
 select is_empty($$ update public.products set is_favorite = false where id = tests.id('yogurt') returning id $$,
   'a viewer cannot change preferences');

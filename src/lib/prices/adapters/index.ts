@@ -13,3 +13,4 @@ export { lidlAdapter, monitorAdapter, openFoodFactsAdapter };
 export type { AdapterContext, AdapterFetchInput, AdapterResult, PriceAdapter } from "./types";
 export { MONITOR_NETWORK_IDS } from "./monitor";
 export { LIDL_PRICE_FILE_URL, parseLidlSheet, rowsToOffers } from "./lidl";
+export { lidlCatalogName, mapLidlCategory, productDraftFromLidlOffer } from "./lidl-product";
