@@ -4,18 +4,20 @@ import clsx from "clsx";
 import { useMemo, useState } from "react";
 import type { EvolutionPoint, EvolutionRange } from "@/lib/dashboard-charts";
 import { useI18n } from "@/lib/i18n/provider";
+import { formatMoney } from "@/lib/money";
 
 const RANGES: EvolutionRange[] = ["7d", "30d", "3m", "12m"];
 
 export function BudgetEvolutionChart({
   seriesByRange,
-  formatAmount,
+  currency,
 }: {
   seriesByRange: Record<EvolutionRange, EvolutionPoint[]>;
-  formatAmount: (minor: number) => string;
+  currency: string;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [range, setRange] = useState<EvolutionRange>("30d");
+  const formatAmount = (minor: number) => formatMoney(minor, currency, locale);
 
   const geometry = useMemo(() => {
     const points = seriesByRange[range] ?? [];
