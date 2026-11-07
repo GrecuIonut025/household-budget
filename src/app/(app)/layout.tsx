@@ -26,7 +26,7 @@ export default async function AppLayout({
   const members = await getMembers(ctx.active.household.id);
 
   return (
-    <div className="min-h-dvh md:grid md:grid-cols-[16.5rem_1fr]">
+    <div className="min-h-dvh md:grid md:grid-cols-[13.25rem_1fr]">
       <aside className="sticky top-0 hidden h-dvh flex-col gap-5 bg-sidebar p-3 text-sidebar-fg md:flex lg:p-4">
         <div className="flex items-center gap-2.5 px-2 pt-1">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -119,7 +119,7 @@ export default async function AppLayout({
           <p className="min-w-0 flex-1 truncate text-sm font-semibold">{t("app.name")}</p>
           <ThemeToggle compact />
         </header>
-        <main className="mx-auto w-full max-w-6xl px-4 pb-28 pt-5 md:px-7 md:pb-10 md:pt-7">
+        <main className="mx-auto w-full max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 md:px-8 md:pb-10 md:pt-6">
           {children}
         </main>
       </div>
