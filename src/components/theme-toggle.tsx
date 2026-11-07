@@ -16,7 +16,14 @@ const OPTIONS: {
   { value: "dark", icon: Moon, labelKey: "theme.dark" },
 ];
 
-export function ThemeToggle({ compact = false }: { compact?: boolean }) {
+export function ThemeToggle({
+  compact = false,
+  tone = "default",
+}: {
+  compact?: boolean;
+  /** Use on the dark navy sidebar so the control stays readable. */
+  tone?: "default" | "sidebar";
+}) {
   const { preference, setPreference, cycle } = useTheme();
   const { t } = useI18n();
 
@@ -27,7 +34,11 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       <button
         type="button"
         onClick={cycle}
-        className={buttonClass("ghost", "size-10 shrink-0 px-0")}
+        className={
+          tone === "sidebar"
+            ? "inline-flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-sidebar-muted transition hover:bg-sidebar-hover hover:text-sidebar-fg"
+            : buttonClass("ghost", "size-10 shrink-0 px-0")
+        }
         aria-label={t("theme.toggle", { mode: t(current.labelKey) })}
         title={t(current.labelKey)}
       >
