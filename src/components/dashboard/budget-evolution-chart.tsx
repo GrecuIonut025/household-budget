@@ -1,6 +1,7 @@
 "use client";
 
 import clsx from "clsx";
+import { ChartNoAxesColumn } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { EvolutionPoint, EvolutionRange } from "@/lib/dashboard-charts";
 import { useI18n } from "@/lib/i18n/provider";
@@ -21,15 +22,19 @@ export function BudgetEvolutionChart({
 
   const geometry = useMemo(() => {
     const points = seriesByRange[range] ?? [];
-    if (points.length === 0) return null;
     const width = 640;
     const height = 220;
     const padX = 16;
-    const padY = 20;
+    const padY = 24;
+    const hasActivity = points.some((p) => p.cumulativeExpenses > 0 || p.dailyExpenses > 0);
+    if (points.length === 0 || !hasActivity) {
+      return { width, height, padX, padY, empty: true as const, points: [] as EvolutionPoint[] };
+    }
     const maxY = Math.max(
       1,
       ...points.map((p) => p.cumulativeExpenses),
       ...points.map((p) => p.budgetLimit ?? 0),
+      ...points.map((p) => p.dailyExpenses),
     );
     const xAt = (i: number) =>
       padX + (points.length <= 1 ? 0 : (i / (points.length - 1)) * (width - padX * 2));
@@ -39,20 +44,33 @@ export function BudgetEvolutionChart({
       .map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)},${yAt(p.cumulativeExpenses).toFixed(1)}`)
       .join(" ");
     const areaPath = `${spendPath} L${xAt(points.length - 1).toFixed(1)},${(height - padY).toFixed(1)} L${xAt(0).toFixed(1)},${(height - padY).toFixed(1)} Z`;
-
     const budget = points[0]?.budgetLimit;
     const budgetY = budget === null || budget === undefined ? null : yAt(budget);
     const last = points[points.length - 1]!;
 
+    // Daily bars under the cumulative line for denser chrome.
+    const gap = points.length > 40 ? 1 : points.length > 20 ? 2 : 3;
+    const innerW = width - padX * 2;
+    const barW = Math.max(2, (innerW - gap * (points.length - 1)) / points.length);
+
     return {
       width,
       height,
+      padX,
+      padY,
+      empty: false as const,
+      points,
       spendPath,
       areaPath,
       budgetY,
       last,
       lastX: xAt(points.length - 1),
       lastY: yAt(last.cumulativeExpenses),
+      barW,
+      gap,
+      yAt,
+      xAt,
+      maxY,
     };
   }, [range, seriesByRange]);
 
@@ -70,9 +88,12 @@ export function BudgetEvolutionChart({
   };
 
   return (
-    <section className="overflow-hidden rounded-[var(--radius-lg)] bg-chart-surface p-4 text-sidebar-fg shadow-[var(--shadow-card)] sm:p-5">
+    <section className="min-h-[20rem] overflow-hidden rounded-[var(--radius-lg)] bg-chart-surface p-4 text-sidebar-fg shadow-[var(--shadow-card)] sm:p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-sidebar-fg">{t("dashboard.evolution")}</h2>
+        <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-sidebar-fg">
+          <ChartNoAxesColumn size={16} aria-hidden className="text-brand" />
+          {t("dashboard.evolution")}
+        </h2>
         <div className="inline-flex rounded-full bg-white/5 p-0.5">
           {RANGES.map((r) => (
             <button
@@ -81,7 +102,7 @@ export function BudgetEvolutionChart({
               onClick={() => setRange(r)}
               className={clsx(
                 "rounded-full px-2.5 py-1 text-xs font-medium transition",
-                range === r ? "bg-brand text-brand-fg" : "text-sidebar-muted hover:text-sidebar-fg",
+                range === r ? "brand-gradient text-brand-fg" : "text-sidebar-muted hover:text-sidebar-fg",
               )}
             >
               {rangeLabel(r)}
@@ -92,16 +113,16 @@ export function BudgetEvolutionChart({
 
       <div className="mb-3 flex items-center gap-4 text-xs text-sidebar-muted">
         <span className="inline-flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-brand" />
-          {t("dashboard.evolutionBudget")}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
           <span className="size-2 rounded-full bg-accent-blue" />
           {t("dashboard.evolutionSpent")}
         </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block w-4 border-t border-dashed border-ok" />
+          {t("dashboard.evolutionBudget")}
+        </span>
       </div>
 
-      {geometry ? (
+      {!geometry.empty ? (
         <div className="relative">
           <svg
             viewBox={`0 0 ${geometry.width} ${geometry.height}`}
@@ -111,33 +132,47 @@ export function BudgetEvolutionChart({
           >
             <defs>
               <linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#7c5cff" stopOpacity="0.35" />
+                <stop offset="0%" stopColor="#7c5cff" stopOpacity="0.4" />
                 <stop offset="100%" stopColor="#7c5cff" stopOpacity="0.02" />
               </linearGradient>
+              <linearGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#a78bfa" />
+                <stop offset="100%" stopColor="#6366f1" />
+              </linearGradient>
             </defs>
+            {geometry.points.map((p, i) => {
+              const x = geometry.padX + i * (geometry.barW + geometry.gap);
+              const h = Math.max(0, geometry.yAt(0) - geometry.yAt(p.dailyExpenses));
+              return (
+                <rect
+                  key={p.date}
+                  x={x}
+                  y={geometry.yAt(p.dailyExpenses)}
+                  width={geometry.barW}
+                  height={h}
+                  rx={Math.min(3, geometry.barW / 2)}
+                  fill="url(#barFill)"
+                  opacity={0.45}
+                />
+              );
+            })}
             {geometry.budgetY !== null ? (
               <line
-                x1="16"
-                x2={geometry.width - 16}
+                x1={geometry.padX}
+                x2={geometry.width - geometry.padX}
                 y1={geometry.budgetY}
                 y2={geometry.budgetY}
-                stroke="#10b981"
+                stroke="#34d399"
                 strokeWidth="2"
-                strokeDasharray="4 4"
-                opacity="0.85"
+                strokeDasharray="5 5"
+                opacity="0.9"
               />
             ) : null}
             <path d={geometry.areaPath} fill="url(#spendFill)" />
-            <path d={geometry.spendPath} fill="none" stroke="#a594ff" strokeWidth="2.5" />
-            <circle cx={geometry.lastX} cy={geometry.lastY} r="4.5" fill="#a594ff" />
+            <path d={geometry.spendPath} fill="none" stroke="#60a5fa" strokeWidth="2.5" />
+            <circle cx={geometry.lastX} cy={geometry.lastY} r="4.5" fill="#60a5fa" />
           </svg>
-          <div
-            className="pointer-events-none absolute rounded-lg bg-white/10 px-2.5 py-1.5 text-xs backdrop-blur"
-            style={{
-              right: "4%",
-              top: `${Math.max(8, (geometry.lastY / geometry.height) * 100 - 12)}%`,
-            }}
-          >
+          <div className="pointer-events-none absolute right-[4%] top-[8%] rounded-lg bg-white/10 px-2.5 py-1.5 text-xs backdrop-blur">
             <p className="font-semibold tabular text-sidebar-fg">
               {formatAmount(geometry.last.cumulativeExpenses)}
             </p>
@@ -145,7 +180,17 @@ export function BudgetEvolutionChart({
           </div>
         </div>
       ) : (
-        <p className="py-10 text-center text-sm text-sidebar-muted">{t("dashboard.categoriesEmpty")}</p>
+        <div className="relative">
+          <svg viewBox="0 0 640 220" className="h-auto w-full" aria-hidden>
+            {[40, 80, 120, 160].map((y) => (
+              <line key={y} x1="16" x2="624" y1={y} y2={y} stroke="rgba(255,255,255,0.06)" />
+            ))}
+            <line x1="16" x2="624" y1="100" y2="100" stroke="#34d399" strokeWidth="2" strokeDasharray="5 5" opacity="0.35" />
+          </svg>
+          <p className="absolute inset-0 flex items-center justify-center text-sm text-sidebar-muted">
+            {t("dashboard.categoriesEmpty")}
+          </p>
+        </div>
       )}
     </section>
   );

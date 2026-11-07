@@ -33,7 +33,7 @@ function readStored(): ThemePreference {
   try {
     return parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY));
   } catch {
-    return "system";
+    return "dark";
   }
 }
 
@@ -96,7 +96,7 @@ function getPreferenceSnapshot(): ThemePreference {
 }
 
 function getPreferenceServerSnapshot(): ThemePreference {
-  return "system";
+  return "dark";
 }
 
 function getResolvedSnapshot(): ResolvedTheme {
@@ -104,7 +104,7 @@ function getResolvedSnapshot(): ResolvedTheme {
 }
 
 function getResolvedServerSnapshot(): ResolvedTheme {
-  return "light";
+  return "dark";
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

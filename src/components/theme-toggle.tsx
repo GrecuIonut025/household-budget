@@ -19,13 +19,52 @@ const OPTIONS: {
 export function ThemeToggle({
   compact = false,
   tone = "default",
+  variant = "button",
 }: {
   compact?: boolean;
   /** Use on the dark navy sidebar so the control stays readable. */
   tone?: "default" | "sidebar";
+  /** Pill shows sun/moon like the Bugetify reference. */
+  variant?: "button" | "pill";
 }) {
-  const { preference, setPreference, cycle } = useTheme();
+  const { preference, setPreference, cycle, resolved } = useTheme();
   const { t } = useI18n();
+
+  if (variant === "pill") {
+    const isDark = resolved === "dark";
+    return (
+      <div
+        role="group"
+        aria-label={t("theme.label")}
+        className="inline-flex w-full items-center rounded-full border border-sidebar-border bg-sidebar-hover/80 p-1"
+      >
+        <button
+          type="button"
+          onClick={() => setPreference("light")}
+          aria-pressed={!isDark}
+          className={clsx(
+            "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-xs font-medium transition",
+            !isDark ? "bg-surface text-fg shadow-sm" : "text-sidebar-muted hover:text-sidebar-fg",
+          )}
+          title={t("theme.light")}
+        >
+          <Sun size={15} aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => setPreference("dark")}
+          aria-pressed={isDark}
+          className={clsx(
+            "inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full text-xs font-medium transition",
+            isDark ? "brand-gradient text-brand-fg shadow-sm" : "text-sidebar-muted hover:text-sidebar-fg",
+          )}
+          title={t("theme.dark")}
+        >
+          <Moon size={15} aria-hidden />
+        </button>
+      </div>
+    );
+  }
 
   if (compact) {
     const current = OPTIONS.find((o) => o.value === preference) ?? OPTIONS[0]!;

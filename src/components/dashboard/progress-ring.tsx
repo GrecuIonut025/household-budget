@@ -4,17 +4,21 @@ export function ProgressRing({
   label,
   size = 72,
   stroke = 7,
+  tone = "ok",
 }: {
   value: number;
   max: number;
   label: string;
   size?: number;
   stroke?: number;
+  tone?: "ok" | "brand" | "orange";
 }) {
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const ratio = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;
   const offset = circumference * (1 - ratio);
+  const toneClass =
+    tone === "brand" ? "text-brand" : tone === "orange" ? "text-accent-orange" : "text-ok";
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
@@ -26,7 +30,7 @@ export function ProgressRing({
           fill="none"
           stroke="currentColor"
           strokeWidth={stroke}
-          className="text-brand/20"
+          className={`${toneClass} opacity-20`}
         />
         <circle
           cx={size / 2}
@@ -38,7 +42,7 @@ export function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className="text-brand transition-[stroke-dashoffset]"
+          className={`${toneClass} transition-[stroke-dashoffset]`}
         />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular text-fg">

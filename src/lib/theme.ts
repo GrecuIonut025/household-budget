@@ -8,7 +8,8 @@ export const THEME_COOKIE = "hb-theme";
 
 export function parseThemePreference(raw: string | null | undefined): ThemePreference {
   if (raw === "light" || raw === "dark" || raw === "system") return raw;
-  return "system";
+  // Dark-first product chrome (Bugetify reference); users can still pick light/system.
+  return "dark";
 }
 
 /** Class applied on `<html>` for forced preferences. System → no class (CSS media). */
