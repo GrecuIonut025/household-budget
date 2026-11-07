@@ -1,4 +1,5 @@
 import type { MessageKey } from "./en";
+import { productsRo } from "./products-messages";
 
 export const ro: Record<MessageKey, string> = {
   "app.name": "Buget de familie",
@@ -48,6 +49,7 @@ export const ro: Record<MessageKey, string> = {
   "role.admin.hint": "Gestionează setările, bugetele, membrii și invitațiile",
   "role.member.hint": "Înregistrează cheltuieli și gestionează cumpărăturile",
   "role.viewer.hint": "Acces doar pentru citire",
+  ...productsRo,
 
   "auth.signIn": "Autentificare",
   "auth.signUp": "Creează cont",

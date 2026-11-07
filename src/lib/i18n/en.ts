@@ -1,3 +1,5 @@
+import { productsEn } from "./products-messages";
+
 export const en = {
   "app.name": "Household Budget",
   "app.tagline": "Budget, groceries and savings in one calm place.",
@@ -46,6 +48,7 @@ export const en = {
   "role.admin.hint": "Manages settings, budgets, members and invites",
   "role.member.hint": "Records spending and manages groceries",
   "role.viewer.hint": "Read-only access",
+  ...productsEn,
 
   "auth.signIn": "Sign in",
   "auth.signUp": "Create account",
