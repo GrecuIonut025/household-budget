@@ -1,4 +1,5 @@
 import { productsEn } from "./products-messages";
+import { recipesEn } from "./recipes";
 
 export const en = {
   "app.name": "Household Budget",
@@ -253,6 +254,8 @@ export const en = {
 
   "offline.title": "You are offline",
   "offline.body": "Reconnect to the internet to keep using Household Budget.",
+
+  ...recipesEn,
 } as const;
 
 export type MessageKey = keyof typeof en;

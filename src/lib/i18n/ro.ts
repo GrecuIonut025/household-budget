@@ -1,5 +1,6 @@
 import type { MessageKey } from "./en";
 import { productsRo } from "./products-messages";
+import { recipesRo } from "./recipes";
 
 export const ro: Record<MessageKey, string> = {
   "app.name": "Buget de familie",
@@ -254,4 +255,6 @@ export const ro: Record<MessageKey, string> = {
 
   "offline.title": "Ești offline",
   "offline.body": "Reconectează-te la internet pentru a continua să folosești Buget de familie.",
+
+  ...recipesRo,
 };
