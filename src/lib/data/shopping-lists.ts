@@ -23,6 +23,74 @@ function fail(what: string, message: string): never {
   throw new Error(`Could not load ${what}: ${message}`);
 }
 
+/** PostgREST / Postgres when a selected column is not in the live schema yet. */
+function isMissingColumnError(message: string): boolean {
+  return /column .+ does not exist/i.test(message) || /Could not find the '.+' column/i.test(message);
+}
+
+const LIST_SELECT_BASE =
+  "id, name, status, scope, retailer_id, planned_for, planned_budget, completed_at, created_at, shopping_list_items(id, is_checked, quantity, estimated_unit_price, actual_unit_price)";
+const LIST_SELECT_FULL =
+  "id, name, status, scope, retailer_id, preferred_retailer_id, strategy, planned_for, planned_budget, meal_week_start, completed_at, created_at, shopping_list_items(id, is_checked, quantity, estimated_unit_price, actual_unit_price)";
+const LIST_DETAIL_BASE =
+  "id, name, status, scope, retailer_id, planned_for, planned_budget, completed_at, created_at";
+const LIST_DETAIL_FULL =
+  "id, name, status, scope, retailer_id, preferred_retailer_id, strategy, planned_for, planned_budget, meal_week_start, completed_at, created_at";
+const ITEM_COLUMNS_BASE =
+  "id, product_id, recipe_id, name, quantity, unit, estimated_unit_price, actual_unit_price, is_checked, note, sort_order";
+const ITEM_COLUMNS_FULL =
+  "id, product_id, recipe_id, name, quantity, unit, estimated_unit_price, actual_unit_price, is_checked, note, sort_order, retailer_id";
+
+function mapListItemsEmbed(
+  items: Array<{
+    id: string;
+    is_checked: boolean;
+    quantity: number | string;
+    estimated_unit_price: number | string | null;
+    actual_unit_price: number | string | null;
+  }>,
+): { item_count: number; checked_count: number; estimated_total: number | null } {
+  let estimated: number | null = null;
+  for (const item of items) {
+    const price = item.actual_unit_price ?? item.estimated_unit_price;
+    if (price === null) continue;
+    estimated = (estimated ?? 0) + Number(item.quantity) * Number(price);
+  }
+  return {
+    item_count: items.length,
+    checked_count: items.filter((i) => i.is_checked).length,
+    estimated_total: estimated === null ? null : Math.round(estimated * 100) / 100,
+  };
+}
+
+function mapListRow(row: Record<string, unknown>): ShoppingListRow {
+  const items =
+    (row.shopping_list_items as Array<{
+      id: string;
+      is_checked: boolean;
+      quantity: number | string;
+      estimated_unit_price: number | string | null;
+      actual_unit_price: number | string | null;
+    }>) ?? [];
+  const counts = mapListItemsEmbed(items);
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    status: row.status as ShoppingListStatus,
+    scope: row.scope as "shared" | "individual",
+    retailer_id: (row.retailer_id as string | null) ?? null,
+    preferred_retailer_id: (row.preferred_retailer_id as string | null) ?? null,
+    strategy: (row.strategy as StrategyKind | null) ?? null,
+    planned_for: (row.planned_for as string | null) ?? null,
+    planned_budget:
+      row.planned_budget === null || row.planned_budget === undefined ? null : Number(row.planned_budget),
+    meal_week_start: (row.meal_week_start as string | null) ?? null,
+    completed_at: (row.completed_at as string | null) ?? null,
+    created_at: row.created_at as string,
+    ...counts,
+  };
+}
+
 export type ShoppingListStatus = "draft" | "active" | "completed" | "archived";
 
 export interface ShoppingListRow {
@@ -141,110 +209,108 @@ export async function getShoppingListPreviews(householdId: string): Promise<Shop
   });
 }
 
+/** Loose PostgREST result so FULL/BASE select fallbacks type-check. */
+type LooseSelectResult = {
+  data: unknown;
+  error: { message: string } | null;
+};
+
 export async function getShoppingLists(householdId: string): Promise<ShoppingListRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let result: LooseSelectResult = await supabase
     .from("shopping_lists")
-    .select(
-      "id, name, status, scope, retailer_id, preferred_retailer_id, strategy, planned_for, planned_budget, meal_week_start, completed_at, created_at, shopping_list_items(id, is_checked, quantity, estimated_unit_price, actual_unit_price)",
-    )
+    .select(LIST_SELECT_FULL)
     .eq("household_id", householdId)
     .neq("status", "archived")
     .order("created_at", { ascending: false });
-  if (error) fail("shopping lists", error.message);
+  if (result.error && isMissingColumnError(result.error.message)) {
+    result = await supabase
+      .from("shopping_lists")
+      .select(LIST_SELECT_BASE)
+      .eq("household_id", householdId)
+      .neq("status", "archived")
+      .order("created_at", { ascending: false });
+  }
+  if (result.error) fail("shopping lists", result.error.message);
 
-  return ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
-    const items = (row.shopping_list_items as Array<{
-      id: string;
-      is_checked: boolean;
-      quantity: number | string;
-      estimated_unit_price: number | string | null;
-      actual_unit_price: number | string | null;
-    }>) ?? [];
-    let estimated: number | null = null;
-    for (const item of items) {
-      const price = item.actual_unit_price ?? item.estimated_unit_price;
-      if (price === null) continue;
-      estimated = (estimated ?? 0) + Number(item.quantity) * Number(price);
-    }
-    return {
-      id: row.id as string,
-      name: row.name as string,
-      status: row.status as ShoppingListStatus,
-      scope: row.scope as "shared" | "individual",
-      retailer_id: (row.retailer_id as string | null) ?? null,
-      preferred_retailer_id: (row.preferred_retailer_id as string | null) ?? null,
-      strategy: (row.strategy as StrategyKind | null) ?? null,
-      planned_for: (row.planned_for as string | null) ?? null,
-      planned_budget: row.planned_budget === null || row.planned_budget === undefined ? null : Number(row.planned_budget),
-      meal_week_start: (row.meal_week_start as string | null) ?? null,
-      completed_at: (row.completed_at as string | null) ?? null,
-      created_at: row.created_at as string,
-      item_count: items.length,
-      checked_count: items.filter((i) => i.is_checked).length,
-      estimated_total: estimated === null ? null : Math.round(estimated * 100) / 100,
-    };
-  });
+  return ((result.data ?? []) as Array<Record<string, unknown>>).map(mapListRow);
 }
 
 export async function getShoppingList(householdId: string, id: string): Promise<ShoppingListDetail | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let listResult: LooseSelectResult = await supabase
     .from("shopping_lists")
-    .select(
-      "id, name, status, scope, retailer_id, preferred_retailer_id, strategy, planned_for, planned_budget, meal_week_start, completed_at, created_at",
-    )
+    .select(LIST_DETAIL_FULL)
     .eq("household_id", householdId)
     .eq("id", id)
     .maybeSingle();
-  if (error) fail("shopping list", error.message);
-  if (!data) return null;
+  if (listResult.error && isMissingColumnError(listResult.error.message)) {
+    listResult = await supabase
+      .from("shopping_lists")
+      .select(LIST_DETAIL_BASE)
+      .eq("household_id", householdId)
+      .eq("id", id)
+      .maybeSingle();
+  }
+  if (listResult.error) fail("shopping list", listResult.error.message);
+  if (!listResult.data) return null;
 
-  const [{ data: items, error: itemsError }, { data: reservation, error: resError }] = await Promise.all([
-    supabase
+  let itemsResult: LooseSelectResult = await supabase
+    .from("shopping_list_items")
+    .select(ITEM_COLUMNS_FULL)
+    .eq("household_id", householdId)
+    .eq("list_id", id)
+    .order("sort_order")
+    .order("created_at");
+  if (itemsResult.error && isMissingColumnError(itemsResult.error.message)) {
+    itemsResult = await supabase
       .from("shopping_list_items")
-      .select(
-        "id, product_id, recipe_id, name, quantity, unit, estimated_unit_price, actual_unit_price, is_checked, note, sort_order, retailer_id",
-      )
+      .select(ITEM_COLUMNS_BASE)
       .eq("household_id", householdId)
       .eq("list_id", id)
       .order("sort_order")
-      .order("created_at"),
-    supabase
-      .from("budget_reservations")
-      .select("id, amount")
-      .eq("household_id", householdId)
-      .eq("shopping_list_id", id)
-      .eq("status", "active")
-      .maybeSingle(),
-  ]);
-  if (itemsError) fail("shopping list items", itemsError.message);
+      .order("created_at");
+  }
+
+  const { data: reservation, error: resError } = await supabase
+    .from("budget_reservations")
+    .select("id, amount")
+    .eq("household_id", householdId)
+    .eq("shopping_list_id", id)
+    .eq("status", "active")
+    .maybeSingle();
+  if (itemsResult.error) fail("shopping list items", itemsResult.error.message);
   if (resError) fail("reservation", resError.message);
 
+  const row = listResult.data as Record<string, unknown>;
   return {
-    id: data.id,
-    name: data.name,
-    status: data.status as ShoppingListStatus,
-    scope: data.scope,
-    retailer_id: data.retailer_id,
-    preferred_retailer_id: data.preferred_retailer_id,
-    strategy: data.strategy as StrategyKind | null,
-    planned_for: data.planned_for,
-    planned_budget: data.planned_budget === null ? null : Number(data.planned_budget),
-    meal_week_start: data.meal_week_start,
-    completed_at: data.completed_at,
-    created_at: data.created_at,
+    id: row.id as string,
+    name: row.name as string,
+    status: row.status as ShoppingListStatus,
+    scope: row.scope as "shared" | "individual",
+    retailer_id: (row.retailer_id as string | null) ?? null,
+    preferred_retailer_id: (row.preferred_retailer_id as string | null) ?? null,
+    strategy: (row.strategy as StrategyKind | null) ?? null,
+    planned_for: (row.planned_for as string | null) ?? null,
+    planned_budget: row.planned_budget === null || row.planned_budget === undefined ? null : Number(row.planned_budget),
+    meal_week_start: (row.meal_week_start as string | null) ?? null,
+    completed_at: (row.completed_at as string | null) ?? null,
+    created_at: row.created_at as string,
     reservation_amount: reservation ? Number(reservation.amount) : null,
     reservation_id: reservation?.id ?? null,
-    items: ((items ?? []) as Array<Record<string, unknown>>).map((i) => ({
+    items: ((itemsResult.data ?? []) as Array<Record<string, unknown>>).map((i) => ({
       id: i.id as string,
       product_id: (i.product_id as string | null) ?? null,
       recipe_id: (i.recipe_id as string | null) ?? null,
       name: i.name as string,
       quantity: Number(i.quantity),
       unit: (i.unit as string | null) ?? null,
-      estimated_unit_price: i.estimated_unit_price === null || i.estimated_unit_price === undefined ? null : Number(i.estimated_unit_price),
-      actual_unit_price: i.actual_unit_price === null || i.actual_unit_price === undefined ? null : Number(i.actual_unit_price),
+      estimated_unit_price:
+        i.estimated_unit_price === null || i.estimated_unit_price === undefined
+          ? null
+          : Number(i.estimated_unit_price),
+      actual_unit_price:
+        i.actual_unit_price === null || i.actual_unit_price === undefined ? null : Number(i.actual_unit_price),
       is_checked: Boolean(i.is_checked),
       note: (i.note as string | null) ?? null,
       sort_order: Number(i.sort_order),

@@ -270,12 +270,18 @@ export default async function DashboardPage() {
                         label={t("common.today")}
                         value={money(summary.dailyAllowance)}
                         hint={t("dashboard.allowanceHint", {
-                          amount: money(Math.max(summary.remaining ?? 0, 0)),
+                          // Morning pool: remaining still includes today's spend, so add it back.
+                          amount: money(
+                            Math.max((summary.remaining ?? 0) + summary.todaySpent, 0),
+                          ),
                           days: t("common.days", { count: summary.daysLeft }),
                         })}
                       />
+                      <p className="mt-3 text-sm text-muted">
+                        {t("dashboard.todaySpent", { amount: money(summary.todaySpent) })}
+                      </p>
                       <p
-                        className={`mt-3 text-sm ${
+                        className={`mt-1 text-sm ${
                           todayTone === "danger"
                             ? "text-danger"
                             : todayTone === "warn"
