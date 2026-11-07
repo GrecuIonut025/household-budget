@@ -28,8 +28,8 @@ export function CategoryDonut({
   centerLabel: string;
   totalLabel: string;
 }) {
-  const size = 160;
-  const stroke = 22;
+  const size = 168;
+  const stroke = 24;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const segments = donutSegments(slices, circumference);
@@ -49,7 +49,7 @@ export function CategoryDonut({
       {slices.length === 0 ? (
         <EmptyState compact title={emptyTitle} />
       ) : (
-        <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+        <div className="flex flex-col items-center gap-5">
           <div className="relative shrink-0" style={{ width: size, height: size }}>
             <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden>
               {segments.map((slice) => (
@@ -67,8 +67,8 @@ export function CategoryDonut({
                 />
               ))}
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-              <p className="tabular text-sm font-semibold text-fg">{totalLabel}</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
+              <p className="tabular text-base font-semibold text-fg">{totalLabel}</p>
               <p className="text-[11px] text-muted">{centerLabel}</p>
             </div>
           </div>

@@ -5,7 +5,11 @@ export type EvolutionRange = "7d" | "30d" | "3m" | "12m";
 
 export interface EvolutionPoint {
   date: string;
+  /** Spend on this calendar day only. */
+  dailyExpenses: Minor;
+  /** Running total from range start through this day. */
   cumulativeExpenses: Minor;
+  /** Optional horizontal guide (e.g. daily allowance). */
   budgetLimit: Minor | null;
 }
 
@@ -18,16 +22,16 @@ export interface CategorySlice {
 }
 
 const CATEGORY_COLORS = [
-  "#10b981",
-  "#3b82f6",
   "#8b5cf6",
+  "#3b82f6",
   "#f59e0b",
+  "#10b981",
+  "#64748b",
   "#ef4444",
   "#14b8a6",
   "#6366f1",
   "#ec4899",
   "#84cc16",
-  "#64748b",
 ];
 
 export function rangeStart(today: string, range: EvolutionRange): string {
@@ -43,7 +47,7 @@ export function rangeStart(today: string, range: EvolutionRange): string {
   }
 }
 
-/** Build a daily cumulative expense series from ISO dates inclusive. */
+/** Build a daily expense series (bars) plus cumulative totals from ISO dates inclusive. */
 export function buildEvolutionSeries(input: {
   today: string;
   range: EvolutionRange;
@@ -62,9 +66,11 @@ export function buildEvolutionSeries(input: {
   let cumulative = 0;
   for (let i = 0; i < days; i++) {
     const date = addDays(start, i);
-    cumulative += byDay.get(date) ?? 0;
+    const daily = byDay.get(date) ?? 0;
+    cumulative += daily;
     points.push({
       date,
+      dailyExpenses: daily,
       cumulativeExpenses: cumulative,
       budgetLimit: input.budgetLimit,
     });

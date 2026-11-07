@@ -266,7 +266,8 @@ export function buttonClass(
 ) {
   return clsx(
     buttonBase,
-    variant === "primary" && "bg-brand text-brand-fg hover:bg-brand-strong",
+    variant === "primary" &&
+      "brand-gradient text-brand-fg hover:opacity-95",
     variant === "secondary" &&
       "border border-border bg-surface text-fg hover:bg-surface-2",
     variant === "danger" && "bg-danger-soft text-danger hover:brightness-95",

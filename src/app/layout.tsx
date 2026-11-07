@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Caveat, Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n/provider";
@@ -15,6 +15,10 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+const caveat = Caveat({
+  variable: "--font-caveat",
+  subsets: ["latin", "latin-ext"],
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -38,8 +42,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f6f8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0d10" },
+    { media: "(prefers-color-scheme: light)", color: "#f4f3f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f0f1b" },
   ],
 };
 
@@ -55,7 +59,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={[geistSans.variable, geistMono.variable, "h-full antialiased", themeClass]
+      className={[geistSans.variable, geistMono.variable, caveat.variable, "h-full antialiased", themeClass]
         .filter(Boolean)
         .join(" ")}
       suppressHydrationWarning

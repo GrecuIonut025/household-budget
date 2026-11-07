@@ -12,11 +12,10 @@ import { Sheet } from "./sheet";
 export function SidebarNav() {
   const pathname = usePathname();
   const { t } = useI18n();
-  const items = NAV_ITEMS.filter((item) => !item.href.includes("#"));
 
   return (
     <nav aria-label={t("nav.primary")} className="flex flex-col gap-1">
-      {items.map((item) => {
+      {NAV_ITEMS.map((item) => {
         const active = isActive(pathname, item.href);
         const Icon = item.icon;
         return (
@@ -25,9 +24,9 @@ export function SidebarNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={clsx(
-              "flex min-h-11 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm font-medium transition",
+              "flex min-h-11 items-center gap-3 rounded-full px-3.5 text-sm font-medium transition",
               active
-                ? "bg-brand text-brand-fg shadow-[0_8px_24px_-12px_var(--brand)]"
+                ? "brand-gradient text-brand-fg shadow-[0_10px_28px_-14px_#7c5cff]"
                 : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-fg",
             )}
           >
@@ -44,7 +43,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
-  const primary = NAV_ITEMS.filter((i) => i.primary && !i.href.includes("#"));
+  const primary = NAV_ITEMS.filter((i) => i.primary);
   const secondary = NAV_ITEMS.filter((i) => !i.primary);
   const secondaryActive = secondary.some((i) => isActive(pathname, i.href));
 
