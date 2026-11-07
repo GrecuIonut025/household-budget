@@ -106,7 +106,6 @@ export default async function DashboardPage() {
   const tomorrow = summary
     ? computeTomorrowAllowance({
         spendingLimit: summary.spendingLimit,
-        todayIncome: summary.todayIncome,
         expenses: summary.expenses,
         reservedTotal: summary.reservedTotal,
         daysLeft: summary.daysLeft,
@@ -321,6 +320,18 @@ export default async function DashboardPage() {
                             label={t("dashboard.tomorrowAllowance")}
                             value={money(tomorrow.tomorrowAllowance)}
                             tone={tomorrow.overBudget ? "danger" : "default"}
+                            hint={
+                              tomorrow.remainingAfterToday !== null
+                                ? t("dashboard.tomorrowHint", {
+                                    amount: money(
+                                      Math.max(tomorrow.remainingAfterToday, 0),
+                                    ),
+                                    days: t("common.days", {
+                                      count: tomorrow.daysFromTomorrow,
+                                    }),
+                                  })
+                                : undefined
+                            }
                           />
                           {tomorrow.overBudget ? (
                             <p className="mt-2 text-sm text-danger">

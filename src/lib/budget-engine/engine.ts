@@ -91,26 +91,27 @@ export function computeBudgetSummary(input: {
 }
 
 /**
- * Daily rate from tomorrow onward, after today's actual spending and today's income.
+ * Daily rate from tomorrow onward, after today's actual spending.
  *
- * - Numerator: `spendingLimit − expenses − activeReserved + todayIncome`. Today's income raises
- *   the pool (mid-period deposit lifts tomorrow's rate); today's expenses and active reservations
- *   reduce it. Reservations are never treated as expenses. Earlier-period income is not added —
- *   raise the spending limit to allocate it, matching the morning `dailyAllowance` envelope.
- * - Denominator: days left excluding today.
+ * - Numerator: `spendingLimit − expenses − activeReserved` — the same remaining budget already
+ *   used on the dashboard. Reservations stay out of expenses and still reduce the pool.
+ * - Do **not** add today's income on top of the limit: the spend envelope is `spendingLimit`.
+ *   Mid-period income lifts tomorrow's rate only when the limit is raised to allocate it
+ *   (same rule as the morning `dailyAllowance`). Adding income here double-counted payday
+ *   deposits that already equalled the limit (e.g. 800 − 366.33 + 800 over 23 days → 53.63).
+ * - Denominator: days left excluding today (`daysLeft − 1`), matching what tomorrow morning's
+ *   `dailyAllowance` will use once today's spend sits in `spentBeforeToday`.
  * - Negative pool → 0 with `overBudget`.
  * - Last day of the period (or period over) → no tomorrow line (`tomorrowAllowance` null).
  */
 export function computeTomorrowAllowance(input: {
   spendingLimit: Minor | null;
-  /** income dated today (earlier-period income is not re-added on top of the limit) */
-  todayIncome: Minor;
   expenses: Minor;
   reservedTotal: Minor;
   daysLeft: number;
   dailyAllowance: Minor | null;
 }): TomorrowAllowance {
-  const { spendingLimit, todayIncome, expenses, reservedTotal, daysLeft, dailyAllowance } = input;
+  const { spendingLimit, expenses, reservedTotal, daysLeft, dailyAllowance } = input;
   const daysFromTomorrow = Math.max(0, daysLeft - 1);
 
   if (spendingLimit === null) {
@@ -123,7 +124,7 @@ export function computeTomorrowAllowance(input: {
     };
   }
 
-  const remainingAfterToday = spendingLimit - expenses - reservedTotal + todayIncome;
+  const remainingAfterToday = spendingLimit - expenses - reservedTotal;
   const overBudget = remainingAfterToday < 0;
 
   if (daysFromTomorrow === 0) {

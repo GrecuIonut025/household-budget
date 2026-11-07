@@ -120,6 +120,7 @@ export const ro: Record<MessageKey, string> = {
   "dashboard.allowanceHint": "{amount} ÷ {days}, fără cheltuielile de azi",
   "dashboard.daysLeft": "{days} rămase din perioadă",
   "dashboard.tomorrowAllowance": "Zilnic de mâine",
+  "dashboard.tomorrowHint": "{amount} ÷ {days}, după cheltuielile de azi",
   "dashboard.allowanceDeltaUp": "cu {amount} mai mult decât azi",
   "dashboard.allowanceDeltaDown": "cu {amount} mai puțin decât azi",
   "dashboard.allowanceDeltaSame": "La fel ca azi",

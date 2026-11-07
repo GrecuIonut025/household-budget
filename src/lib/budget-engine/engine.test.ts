@@ -131,7 +131,6 @@ describe("computeTomorrowAllowance", () => {
   it("divides remaining after today's spending by days left excluding today", () => {
     const t = computeTomorrowAllowance({
       spendingLimit: base.spendingLimit,
-      todayIncome: base.todayIncome,
       expenses: base.expenses,
       reservedTotal: base.reservedTotal,
       daysLeft: base.daysLeft,
@@ -145,32 +144,88 @@ describe("computeTomorrowAllowance", () => {
     expect(t.allowanceDelta).toBe(t.tomorrowAllowance! - base.dailyAllowance!);
   });
 
-  it("raises tomorrow's rate when income arrives today", () => {
-    const withIncome = computeBudgetSummary({
-      budget,
-      transactions: [...transactions, tx({ type: "income", amount: m(230), occurredOn: "2026-11-07" })],
-      reservations,
-      today: "2026-11-07",
-    });
-    expect(withIncome.todayIncome).toBe(m(230));
+  it("raises tomorrow's rate when the spending limit is raised mid-period", () => {
     const before = computeTomorrowAllowance({
       spendingLimit: base.spendingLimit,
-      todayIncome: base.todayIncome,
       expenses: base.expenses,
       reservedTotal: base.reservedTotal,
       daysLeft: base.daysLeft,
       dailyAllowance: base.dailyAllowance,
     });
+    const raisedLimit = (base.spendingLimit ?? 0) + m(230);
     const after = computeTomorrowAllowance({
-      spendingLimit: withIncome.spendingLimit,
-      todayIncome: withIncome.todayIncome,
-      expenses: withIncome.expenses,
-      reservedTotal: withIncome.reservedTotal,
-      daysLeft: withIncome.daysLeft,
-      dailyAllowance: withIncome.dailyAllowance,
+      spendingLimit: raisedLimit,
+      expenses: base.expenses,
+      reservedTotal: base.reservedTotal,
+      daysLeft: base.daysLeft,
+      dailyAllowance: Math.floor(
+        Math.max(0, raisedLimit - (base.expenses - base.todaySpent) - base.reservedTotal) / base.daysLeft,
+      ),
     });
     expect(after.tomorrowAllowance).toBe(before.tomorrowAllowance! + m(10)); // 230 / 23
     expect(after.allowanceDelta).toBeGreaterThan(before.allowanceDelta!);
+  });
+
+  it("does not add same-day income on top of the limit (user regression: 53.63)", () => {
+    // Limit 800, all 366.33 spent today, 24 days left incl. today → remaining 433.67.
+    // Old bug: remainingAfterToday = limit − expenses + todayIncome(800) → 1233.67 / 23 = 53.63.
+    // Correct: remaining 433.67 / 23 ≈ 18.85 (user approx 433.67/24 ≈ 18.07).
+    const limit = m(800);
+    const todaySpend = m(366.33);
+    const daysLeft = 24;
+    const remaining = limit - todaySpend;
+    expect(remaining).toBe(m(433.67));
+
+    const dailyAllowance = Math.floor(limit / daysLeft);
+    expect(dailyAllowance).toBe(m(33.33));
+
+    const buggyIfIncomeAdded = Math.floor((remaining + limit) / (daysLeft - 1));
+    expect(buggyIfIncomeAdded).toBe(m(53.63));
+
+    const summary = computeBudgetSummary({
+      budget: {
+        startDate: "2026-11-01",
+        endDate: "2026-11-24",
+        spendingLimit: limit,
+        groceryLimit: null,
+      },
+      transactions: [
+        tx({ type: "income", amount: limit, occurredOn: "2026-11-01" }),
+        tx({ amount: todaySpend, occurredOn: "2026-11-01" }),
+      ],
+      reservations: [],
+      today: "2026-11-01",
+    });
+    expect(summary.daysLeft).toBe(daysLeft);
+    expect(summary.remaining).toBe(remaining);
+    expect(summary.todaySpent).toBe(todaySpend);
+    expect(summary.todayIncome).toBe(limit);
+    expect(summary.dailyAllowance).toBe(dailyAllowance);
+
+    const t = computeTomorrowAllowance({
+      spendingLimit: summary.spendingLimit,
+      expenses: summary.expenses,
+      reservedTotal: summary.reservedTotal,
+      daysLeft: summary.daysLeft,
+      dailyAllowance: summary.dailyAllowance,
+    });
+    expect(t.daysFromTomorrow).toBe(23);
+    expect(t.remainingAfterToday).toBe(remaining);
+    expect(t.tomorrowAllowance).toBe(Math.floor(remaining / 23)); // 18.85
+    expect(t.tomorrowAllowance).toBe(m(18.85));
+    expect(t.tomorrowAllowance).not.toBe(m(53.63));
+    expect(t.tomorrowAllowance).not.toBe(buggyIfIncomeAdded);
+    // Same-day income must not change the pool vs a no-income twin.
+    const withoutPayday = computeTomorrowAllowance({
+      spendingLimit: limit,
+      expenses: todaySpend,
+      reservedTotal: 0,
+      daysLeft,
+      dailyAllowance,
+    });
+    expect(withoutPayday.tomorrowAllowance).toBe(t.tomorrowAllowance);
+    expect(t.allowanceDelta).toBe(t.tomorrowAllowance! - dailyAllowance);
+    expect(t.allowanceDelta).toBeLessThan(0);
   });
 
   it("clamps to zero and flags over-budget when remaining is negative", () => {
@@ -182,7 +237,6 @@ describe("computeTomorrowAllowance", () => {
     });
     const t = computeTomorrowAllowance({
       spendingLimit: over.spendingLimit,
-      todayIncome: over.todayIncome,
       expenses: over.expenses,
       reservedTotal: over.reservedTotal,
       daysLeft: over.daysLeft,
@@ -198,7 +252,6 @@ describe("computeTomorrowAllowance", () => {
     expect(last.daysLeft).toBe(1);
     const t = computeTomorrowAllowance({
       spendingLimit: last.spendingLimit,
-      todayIncome: last.todayIncome,
       expenses: last.expenses,
       reservedTotal: last.reservedTotal,
       daysLeft: last.daysLeft,
@@ -212,7 +265,6 @@ describe("computeTomorrowAllowance", () => {
   it("holds active reservations out of tomorrow's pool", () => {
     const withRes = computeTomorrowAllowance({
       spendingLimit: base.spendingLimit,
-      todayIncome: 0,
       expenses: base.expenses,
       reservedTotal: base.reservedTotal,
       daysLeft: base.daysLeft,
@@ -220,7 +272,6 @@ describe("computeTomorrowAllowance", () => {
     });
     const withoutRes = computeTomorrowAllowance({
       spendingLimit: base.spendingLimit,
-      todayIncome: 0,
       expenses: base.expenses,
       reservedTotal: 0,
       daysLeft: base.daysLeft,
@@ -233,7 +284,6 @@ describe("computeTomorrowAllowance", () => {
   it("returns nulls without a spending limit", () => {
     const t = computeTomorrowAllowance({
       spendingLimit: null,
-      todayIncome: 0,
       expenses: base.expenses,
       reservedTotal: base.reservedTotal,
       daysLeft: base.daysLeft,
