@@ -8,6 +8,7 @@ import {
   Scale,
   Settings,
   ShoppingCart,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import type { MessageKey } from "@/lib/i18n";
@@ -18,6 +19,10 @@ export interface NavItem {
   icon: LucideIcon;
   /** shown directly in the mobile bottom bar; the rest live under "More" */
   primary: boolean;
+  /** Optional pill next to the label (e.g. NOU). */
+  badge?: MessageKey;
+  /** Extra icon colour class for inactive state. */
+  iconClass?: string;
 }
 
 export interface NavGroup {
@@ -32,6 +37,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/transactions", label: "nav.transactions", icon: ArrowLeftRight, primary: true },
   { href: "/products", label: "nav.products", icon: Package, primary: false },
   { href: "/recipes", label: "nav.recipes", icon: ChefHat, primary: false },
+  {
+    href: "/community",
+    label: "nav.community",
+    icon: Sparkles,
+    primary: false,
+    badge: "nav.badgeNew",
+    iconClass: "text-indigo-400 group-hover:scale-105 group-hover:text-indigo-300",
+  },
   { href: "/shopping-lists", label: "nav.shoppingLists", icon: ShoppingCart, primary: true },
   { href: "/price-comparison", label: "nav.priceComparison", icon: Scale, primary: false },
   { href: "/analytics", label: "nav.analytics", icon: ChartNoAxesColumn, primary: false },

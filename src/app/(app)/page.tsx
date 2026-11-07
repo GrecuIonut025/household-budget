@@ -484,6 +484,7 @@ export default async function DashboardPage() {
             title={t("dashboard.recipePromoTitle")}
             body={t("dashboard.recipePromoBody")}
             cta={recommended ? t("dashboard.recipePromoCta") : t("dashboard.recipeExploreCta")}
+            communityLabel={t("community.exploreCulinary")}
             recipe={
               recommended
                 ? {
