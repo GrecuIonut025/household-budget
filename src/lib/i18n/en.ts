@@ -1,3 +1,4 @@
+import { pricesEn } from "./prices-messages";
 import { productsEn } from "./products-messages";
 import { recipesEn } from "./recipes";
 
@@ -50,6 +51,7 @@ export const en = {
   "role.member.hint": "Records spending and manages groceries",
   "role.viewer.hint": "Read-only access",
   ...productsEn,
+  ...pricesEn,
 
   "auth.signIn": "Sign in",
   "auth.signUp": "Create account",

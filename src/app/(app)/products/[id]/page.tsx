@@ -9,7 +9,10 @@ import { FavoriteButton } from "@/components/products/product-flag-button";
 import { ProductThumb } from "@/components/products/product-thumb";
 import { Badge, Card, CardTitle, EmptyState, Stat, buttonClass } from "@/components/ui";
 import { getMembers, requireAppContext } from "@/lib/data/context";
+import { ManualPriceButton } from "@/components/prices/manual-price-form";
+import { PriceHistoryChart } from "@/components/prices/price-history-chart";
 import { getProduct, getProductPrices, getPurchaseHistory, getRetailers, signProductImages } from "@/lib/data/products";
+import { listPriceHistory } from "@/lib/data/prices";
 import { canWrite } from "@/lib/data/types";
 import { formatDate, todayFor } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
@@ -39,12 +42,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<Pa
   const product = await getProduct(household.id, id);
   if (!product) notFound();
 
-  const [history, prices, retailers, members, images] = await Promise.all([
+  const [history, prices, retailers, members, images, priceHistory] = await Promise.all([
     getPurchaseHistory(household.id, id),
     getProductPrices(household.id, [id]),
     getRetailers(),
     getMembers(household.id),
     signProductImages([product.image_path]),
+    listPriceHistory(household.id, id),
   ]);
   const writer = canWrite(role);
   const today = todayFor(household.timezone);
@@ -174,9 +178,27 @@ export default async function ProductDetailPage({ params }: { params: Promise<Pa
         ) : null}
       </Card>
 
-      {prices.length > 0 ? (
-        <Card className="mb-4">
-          <CardTitle>{t("products.pricesTitle")}</CardTitle>
+      <Card className="mb-4">
+        <CardTitle
+          action={
+            writer ? (
+              <ManualPriceButton
+                householdId={household.id}
+                products={[{ id: product.id, name: product.name }]}
+                retailers={retailers}
+                currency={household.currency}
+                today={today}
+                defaultProductId={product.id}
+                className="text-sm font-medium text-brand hover:underline"
+              />
+            ) : undefined
+          }
+        >
+          {t("products.pricesTitle")}
+        </CardTitle>
+        {prices.length === 0 ? (
+          <EmptyState title={t("prices.noQuotes")} />
+        ) : (
           <ul className="-mx-1 divide-y divide-border">
             {[...prices]
               .sort((a, b) => a.price - b.price)
@@ -190,8 +212,18 @@ export default async function ProductDetailPage({ params }: { params: Promise<Pa
                 </li>
               ))}
           </ul>
-        </Card>
-      ) : null}
+        )}
+        <div className="mt-4 border-t border-border pt-4">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{t("prices.historyTitle")}</p>
+          <PriceHistoryChart
+            points={priceHistory}
+            retailers={retailers}
+            currency={household.currency}
+            locale={locale}
+            empty={t("prices.historyEmpty")}
+          />
+        </div>
+      </Card>
 
       {product.notes ? (
         <Card className="mb-4">
