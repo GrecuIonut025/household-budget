@@ -25,10 +25,10 @@ export function AuthForm({
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-2xl font-bold tracking-tight text-fg">
           {mode === "signin" ? t("auth.signInTitle") : t("auth.signUpTitle")}
         </h1>
-        <p className="text-sm text-muted">{t("app.tagline")}</p>
+        <p className="text-sm font-medium text-muted">{t("app.tagline")}</p>
       </div>
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="next" value={next} />

@@ -18,12 +18,17 @@ export function QuickLists({
   canAdd: boolean;
 }) {
   return (
-    <section className="flex min-h-[18rem] flex-col rounded-[var(--radius-lg)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] sm:p-5">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-fg">{title}</h2>
+    <section className="dashboard-card flex min-h-[18rem] flex-col p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-amber-400" aria-hidden>
+            ★
+          </span>
+          <h2 className="text-base font-semibold text-fg">{title}</h2>
+        </div>
         <Link
           href="/shopping-lists"
-          className="inline-flex items-center gap-1 text-xs font-medium text-brand-strong hover:underline"
+          className="inline-flex items-center gap-1 text-xs font-medium text-purple-400 hover:text-purple-300"
         >
           {viewAll} <ArrowRight size={12} aria-hidden />
         </Link>

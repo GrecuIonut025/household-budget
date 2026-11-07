@@ -9,7 +9,7 @@ export interface EvolutionPoint {
   dailyExpenses: Minor;
   /** Running total from range start through this day. */
   cumulativeExpenses: Minor;
-  /** Optional horizontal guide (e.g. daily allowance). */
+  /** Optional horizontal guide (e.g. period spending limit). */
   budgetLimit: Minor | null;
 }
 
@@ -21,16 +21,17 @@ export interface CategorySlice {
   color: string;
 }
 
+/** Match Bugetify HTML donut: violet, cyan, amber, emerald, slate… */
 const CATEGORY_COLORS = [
   "#8b5cf6",
-  "#3b82f6",
+  "#06b6d4",
   "#f59e0b",
   "#10b981",
   "#64748b",
   "#ef4444",
-  "#14b8a6",
   "#6366f1",
   "#ec4899",
+  "#14b8a6",
   "#84cc16",
 ];
 

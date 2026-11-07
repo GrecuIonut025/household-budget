@@ -3,24 +3,20 @@ import type { ReactNode } from "react";
 
 const TONES = {
   green: {
-    card: "bg-card-green border-ok/15",
-    icon: "bg-ok/15 text-ok",
-    wave: "var(--ok)",
+    chip: "bg-gradient-to-tr from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25",
+    value: "text-ok",
   },
   blue: {
-    card: "bg-card-blue border-accent-blue/15",
-    icon: "bg-accent-blue/15 text-accent-blue",
-    wave: "var(--accent-blue)",
+    chip: "bg-gradient-to-tr from-cyan-600 to-blue-500 text-white shadow-lg shadow-cyan-600/25",
+    value: "text-fg",
   },
   purple: {
-    card: "bg-card-purple border-accent-purple/15",
-    icon: "bg-accent-purple/15 text-accent-purple",
-    wave: "var(--accent-purple)",
+    chip: "bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/30",
+    value: "text-ok",
   },
   orange: {
-    card: "bg-card-orange border-accent-orange/15",
-    icon: "bg-accent-orange/15 text-accent-orange",
-    wave: "var(--accent-orange)",
+    chip: "bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/25",
+    value: "text-fg",
   },
 } as const;
 
@@ -31,7 +27,7 @@ export function SummaryCard({
   value,
   hint,
   trailing,
-  action,
+  iconVariant = "chip",
 }: {
   tone: keyof typeof TONES;
   icon: ReactNode;
@@ -39,48 +35,34 @@ export function SummaryCard({
   value: ReactNode;
   hint?: ReactNode;
   trailing?: ReactNode;
-  action?: ReactNode;
+  iconVariant?: "chip" | "plain";
 }) {
-  const t = TONES[tone];
+  const styles = TONES[tone];
   return (
-    <section
-      className={clsx(
-        "relative min-h-[8.5rem] overflow-hidden rounded-[var(--radius-lg)] border p-4 shadow-[var(--shadow-card)] sm:p-5",
-        t.card,
-      )}
-    >
-      <svg
-        className="pointer-events-none absolute -bottom-1 -right-2 h-16 w-36 opacity-35"
-        viewBox="0 0 160 64"
-        aria-hidden
-      >
-        <path
-          d="M0 40 C28 18 44 54 72 36 S120 8 160 28 L160 64 L0 64 Z"
-          fill={t.wave}
-          opacity="0.35"
-        />
-        <path
-          d="M0 48 C36 28 52 58 84 42 S128 22 160 40"
-          fill="none"
-          stroke={t.wave}
-          strokeWidth="3"
-          opacity="0.55"
-        />
-      </svg>
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="mb-3 flex items-center gap-2">
-            <span className={clsx("inline-flex size-9 items-center justify-center rounded-[var(--radius-md)]", t.icon)}>
-              {icon}
-            </span>
-            <p className="min-w-0 flex-1 truncate text-xs font-medium text-muted">{label}</p>
-            {action}
-          </div>
-          <div className="tabular text-2xl font-semibold tracking-tight text-fg">{value}</div>
-          {hint ? <div className="mt-1.5 text-xs text-muted">{hint}</div> : null}
+    <section className="dashboard-card flex items-center justify-between p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <div
+          className={clsx(
+            "inline-flex size-12 shrink-0 items-center justify-center",
+            iconVariant === "chip" && `rounded-2xl ${styles.chip}`,
+          )}
+        >
+          {icon}
         </div>
-        {trailing}
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted">{label}</p>
+          <p
+            className={clsx(
+              "tabular mt-0.5 truncate text-xl font-bold tracking-tight",
+              styles.value,
+            )}
+          >
+            {value}
+          </p>
+          {hint ? <div className="mt-1 text-xs text-muted">{hint}</div> : null}
+        </div>
       </div>
+      {trailing}
     </section>
   );
 }

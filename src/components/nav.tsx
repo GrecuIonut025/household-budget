@@ -12,10 +12,11 @@ import { Sheet } from "./sheet";
 export function SidebarNav() {
   const pathname = usePathname();
   const { t } = useI18n();
+  const items = NAV_ITEMS.filter((item) => !item.href.includes("#"));
 
   return (
-    <nav aria-label={t("nav.primary")} className="flex flex-col gap-1">
-      {NAV_ITEMS.map((item) => {
+    <nav aria-label={t("nav.primary")} className="flex flex-col gap-1.5">
+      {items.map((item) => {
         const active = isActive(pathname, item.href);
         const Icon = item.icon;
         return (
@@ -24,14 +25,23 @@ export function SidebarNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={clsx(
-              "flex min-h-11 items-center gap-3 rounded-full px-3.5 text-sm font-medium transition",
+              "group flex min-h-11 items-center gap-3.5 rounded-2xl px-4 text-sm font-medium transition-all",
               active
-                ? "brand-gradient text-brand-fg shadow-[0_10px_28px_-14px_#7c5cff]"
-                : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-fg",
+                ? "nav-active"
+                : "py-2.5 text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-fg",
+              active && "py-3",
             )}
           >
-            <Icon size={18} aria-hidden strokeWidth={active ? 2.25 : 2} />
-            {t(item.label)}
+            <Icon
+              size={20}
+              aria-hidden
+              strokeWidth={active ? 2.25 : 2}
+              className={clsx(
+                "shrink-0 transition-colors",
+                active ? "text-white" : "text-sidebar-muted group-hover:text-brand-accent",
+              )}
+            />
+            <span className="truncate">{t(item.label)}</span>
           </Link>
         );
       })}
@@ -43,7 +53,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
-  const primary = NAV_ITEMS.filter((i) => i.primary);
+  const primary = NAV_ITEMS.filter((i) => i.primary && !i.href.includes("#"));
   const secondary = NAV_ITEMS.filter((i) => !i.primary);
   const secondaryActive = secondary.some((i) => isActive(pathname, i.href));
 
@@ -105,11 +115,17 @@ export function BottomNav() {
                           onClick={() => setMoreOpen(false)}
                           aria-current={active ? "page" : undefined}
                           className={clsx(
-                            "flex min-h-12 items-center gap-3 rounded-[var(--radius-md)] px-3 text-sm font-medium",
-                            active ? "bg-brand-soft text-brand-strong" : "hover:bg-surface-2",
+                            "flex min-h-12 items-center gap-3 rounded-2xl px-3 text-sm font-medium",
+                            active
+                              ? "bg-brand-soft text-brand-strong"
+                              : "hover:bg-surface-2",
                           )}
                         >
-                          <Icon size={18} aria-hidden className={active ? undefined : "text-muted"} />
+                          <Icon
+                            size={18}
+                            aria-hidden
+                            className={active ? undefined : "text-muted"}
+                          />
                           {t(item.label)}
                         </Link>
                       </li>
