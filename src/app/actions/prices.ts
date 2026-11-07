@@ -9,6 +9,7 @@ import { getProducts } from "@/lib/data/products";
 import { getRetailersWithMonitorIds, listPriceDetails } from "@/lib/data/prices";
 import { canWrite } from "@/lib/data/types";
 import { lidlAdapter, monitorAdapter, productDraftFromLidlOffer } from "@/lib/prices/adapters";
+import { isProductsDataSourceCheck } from "@/lib/prices/lidl-compat";
 import { matchOffer, manualMatch } from "@/lib/prices/matching";
 import { parseSize } from "@/lib/prices/normalize";
 import { AUTO_LINK_THRESHOLD, REVIEW_THRESHOLD, type AdapterOffer, type MatchCandidate } from "@/lib/prices/types";
@@ -288,46 +289,82 @@ export async function refreshLidlPrices(_: PriceActionState, formData: FormData)
 
   const supabase = await createClient();
   let created = 0;
+  /** Prefer lidl_xlsb; fall back to manual when migration 20261108230000 is not applied. */
+  let catalogueDataSource: "lidl_xlsb" | "manual" = "lidl_xlsb";
+  let notedDataSourceFallback = false;
+
+  const noteDataSourceFallback = () => {
+    if (notedDataSourceFallback) return;
+    notedDataSourceFallback = true;
+    catalogueDataSource = "manual";
+    warnings.push(t("prices.lidlDataSourceFallback"));
+  };
+
+  const productInsertRow = (
+    draft: NonNullable<ReturnType<typeof productDraftFromLidlOffer>>,
+    dataSource: "lidl_xlsb" | "manual",
+  ) => ({
+    household_id: householdId,
+    name: draft.name,
+    brand: draft.brand,
+    category: draft.category,
+    unit: draft.unit,
+    package_size: draft.packageSize,
+    package_unit: draft.packageUnit,
+    preferred_retailer_id: lidlRetailer.id,
+    data_source: dataSource,
+    created_by: ctx.user.id,
+  });
 
   try {
     const pendingEntries = [...pendingByName.values()];
     for (let i = 0; i < pendingEntries.length; i += 100) {
       const chunk = pendingEntries.slice(i, i + 100);
-      const rows = chunk.map(({ draft }) => ({
-        household_id: householdId,
-        name: draft.name,
-        brand: draft.brand,
-        category: draft.category,
-        unit: draft.unit,
-        package_size: draft.packageSize,
-        package_unit: draft.packageUnit,
-        preferred_retailer_id: lidlRetailer.id,
-        data_source: draft.dataSource,
-        created_by: ctx.user.id,
-      }));
-      const { data, error } = await supabase.from("products").insert(rows).select("id, name");
+      let data: { id: string; name: string }[] | null = null;
+      let error: { message: string; code?: string } | null = null;
+
+      {
+        const attempt = await supabase
+          .from("products")
+          .insert(chunk.map(({ draft }) => productInsertRow(draft, catalogueDataSource)))
+          .select("id, name");
+        data = (attempt.data as { id: string; name: string }[] | null) ?? null;
+        error = attempt.error;
+      }
+
+      if (error && isProductsDataSourceCheck(error) && catalogueDataSource === "lidl_xlsb") {
+        noteDataSourceFallback();
+        const retry = await supabase
+          .from("products")
+          .insert(chunk.map(({ draft }) => productInsertRow(draft, "manual")))
+          .select("id, name");
+        data = (retry.data as { id: string; name: string }[] | null) ?? null;
+        error = retry.error;
+      }
+
       if (error) {
         // Fall back to one-by-one so a single conflict does not abort the whole refresh.
         for (const { draft, offers } of chunk) {
-          const { data: one, error: oneErr } = await supabase
+          let one = await supabase
             .from("products")
-            .insert({
-              household_id: householdId,
-              name: draft.name,
-              brand: draft.brand,
-              category: draft.category,
-              unit: draft.unit,
-              package_size: draft.packageSize,
-              package_unit: draft.packageUnit,
-              preferred_retailer_id: lidlRetailer.id,
-              data_source: draft.dataSource,
-              created_by: ctx.user.id,
-            })
+            .insert(productInsertRow(draft, catalogueDataSource))
             .select("id")
             .single();
-          let productId = typeof one?.id === "string" ? one.id : null;
+          if (
+            one.error &&
+            isProductsDataSourceCheck(one.error) &&
+            catalogueDataSource === "lidl_xlsb"
+          ) {
+            noteDataSourceFallback();
+            one = await supabase
+              .from("products")
+              .insert(productInsertRow(draft, "manual"))
+              .select("id")
+              .single();
+          }
+          let productId = typeof one.data?.id === "string" ? one.data.id : null;
           let didCreate = false;
-          if (oneErr || !productId) {
+          if (one.error || !productId) {
             const { data: again } = await supabase
               .from("products")
               .select("id")
@@ -337,7 +374,7 @@ export async function refreshLidlPrices(_: PriceActionState, formData: FormData)
               .maybeSingle();
             productId = typeof again?.id === "string" ? again.id : null;
             if (!productId) {
-              warnings.push(`Could not create “${draft.name}”: ${oneErr?.message ?? "missing id"}`);
+              warnings.push(`Could not create “${draft.name}”: ${one.error?.message ?? "missing id"}`);
               continue;
             }
           } else {
@@ -360,8 +397,8 @@ export async function refreshLidlPrices(_: PriceActionState, formData: FormData)
       }
 
       for (const row of data ?? []) {
-        const name = row.name as string;
-        const productId = row.id as string;
+        const name = row.name;
+        const productId = row.id;
         productByName.set(name.toLowerCase(), productId);
         const pending = pendingByName.get(name.toLowerCase());
         if (!pending) continue;
