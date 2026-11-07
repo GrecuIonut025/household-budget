@@ -48,7 +48,12 @@ export function applyThemeClass(resolved: ResolvedTheme) {
   root.style.colorScheme = resolved;
 }
 
-/** Inline boot script — paste into <head> to avoid a flash before hydration. */
+/**
+ * Inline boot script for the root layout `<head>`.
+ * Keep this as a plain string for `dangerouslySetInnerHTML` — do not load it
+ * through `next/script` (React 19 logs a console error for client-rendered
+ * `<script>` tags and they never execute on the client).
+ */
 export const THEME_BOOT_SCRIPT = `(function(){try{var k=${JSON.stringify(STORAGE_KEY)};var t=localStorage.getItem(k);var d=t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;r.classList.toggle("dark",d);r.style.colorScheme=d?"dark":"light";}catch(e){}})();`;
 
 type StoreListener = () => void;
