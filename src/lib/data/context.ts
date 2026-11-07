@@ -60,7 +60,7 @@ export async function getMembers(householdId: string): Promise<MemberRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("household_members")
-    .select("user_id, role, joined_at, profiles(display_name)")
+    .select("user_id, role, joined_at, profiles!household_members_user_id_fkey(display_name)")
     .eq("household_id", householdId)
     .order("joined_at");
   if (error) throw new Error(`Could not load members: ${error.message}`);

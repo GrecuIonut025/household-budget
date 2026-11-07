@@ -1,36 +1,100 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Household Budget
 
-## Getting Started
+Mobile-first PWA for household budgeting, with a grocery ecosystem (products, Romanian supermarket price tracking,
+recipes, meal planner, shopping lists) that shares one budget and savings engine.
 
-First, run the development server:
+Stack: Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase (Postgres, Auth, RLS, Storage).
+Default currency RON, locales `ro` (default) and `en`.
+
+**Status: foundation.** Working: auth, household management (members, roles, invites), budgets, transactions,
+savings goals, dashboard with the budget engine. Placeholders: Products, Price Comparison, Recipes, Meal Planner,
+Shopping Lists, Analytics (their database schema already exists). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Requirements
+
+- Node.js 22+
+- A Supabase project: either the local stack (Supabase CLI + Docker) or a hosted project
+
+## Local setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local     # then fill in the values below
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Option A: Supabase CLI (recommended)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx supabase start             # prints the API URL and anon key
+npx supabase db reset          # applies supabase/migrations
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Put the printed `API URL` and `anon key` into `.env.local`:
 
-## Learn More
+```
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+```
 
-To learn more about Next.js, take a look at the following resources:
+For local sign-up without email confirmation, keep `enable_confirmations = false` (the CLI default) in
+`supabase/config.toml`; otherwise confirm via the local Inbucket mailbox.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Option B: hosted Supabase
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npx supabase link --project-ref <ref>
+npx supabase db push
+```
 
-## Deploy on Vercel
+Set the project URL and anon key in `.env.local`. In Auth settings add `http://localhost:3000/auth/callback` (and
+your production URL) to the allowed redirect URLs.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Run
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev                    # http://localhost:3000
+```
+
+Sign up, create a household (name, number of people, currency, optional monthly limits) and start recording
+transactions. Invite others from **Household Settings → Invitations**; they open the link, sign up and accept.
+
+### No Docker?
+
+`scripts/local-stack/` starts PostgreSQL migrations + PostgREST + a small mock auth gateway on
+`http://127.0.0.1:54321`, enough to run the app in sandboxes. It is a development harness only (see the header of
+`scripts/local-stack/start.sh` for requirements).
+
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` / `build` / `start` | Next.js |
+| `npm run typecheck` | TypeScript, no emit |
+| `npm run lint` | ESLint |
+| `npm test` | Vitest unit tests (budget engine, money, dates, i18n, helpers) |
+| `npm run test:db` | pgTAP: applies all migrations to a scratch Postgres DB and runs RLS / trigger / engine tests |
+| `npm run check` | typecheck + lint + unit tests |
+
+### Database tests
+
+`npm run test:db` needs a PostgreSQL 15+ server with the `pgtap` extension and `pg_prove`
+(Ubuntu: `apt install postgresql postgresql-16-pgtap libtap-parser-sourcehandler-pgtap-perl`). Point it at a
+superuser connection with `DATABASE_URL` (default `postgres://postgres:postgres@127.0.0.1:5432/postgres`). With the
+Supabase CLI running you can instead use `npx supabase test db`.
+
+## Project layout
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the ERD, the RLS model and conventions.
+
+```
+supabase/migrations/   schema, triggers, views, RLS, storage, seed retailers
+supabase/tests/        pgTAP suites
+src/lib/budget-engine/ pure budget logic
+src/app/               routes and server actions
+```
+
+## Security notes
+
+- Row level security is enabled on every table; the app only uses the user-scoped client (no service-role key).
+- Price adapters (a later worker) should write `product_prices` with the service role, from a trusted server only.
+- Never expose the service-role key to the browser or commit `.env.local`.
