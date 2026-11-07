@@ -1,13 +1,36 @@
 "use client";
 
 import clsx from "clsx";
-import { ChartNoAxesColumn } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { EvolutionPoint, EvolutionRange } from "@/lib/dashboard-charts";
+import { formatDate } from "@/lib/format";
 import { useI18n } from "@/lib/i18n/provider";
 import { formatMoney } from "@/lib/money";
 
 const RANGES: EvolutionRange[] = ["7d", "30d", "3m", "12m"];
+
+function niceMax(value: number): number {
+  if (value <= 0) return 1000;
+  const padded = value * 1.15;
+  const magnitude = 10 ** Math.floor(Math.log10(padded));
+  const normalized = padded / magnitude;
+  const nice =
+    normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return nice * magnitude;
+}
+
+function formatAxis(minor: number, locale: string): string {
+  const major = minor / 100;
+  if (major >= 1000) {
+    const k = major / 1000;
+    const rounded = Number.isInteger(k) ? String(k) : k.toFixed(1).replace(/\.0$/, "");
+    return `${rounded}k`;
+  }
+  return new Intl.NumberFormat(locale === "ro" ? "ro-RO" : "en-US", {
+    maximumFractionDigits: 0,
+  }).format(major);
+}
 
 export function BudgetEvolutionChart({
   seriesByRange,
@@ -18,59 +41,48 @@ export function BudgetEvolutionChart({
 }) {
   const { t, locale } = useI18n();
   const [range, setRange] = useState<EvolutionRange>("30d");
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const formatAmount = (minor: number) => formatMoney(minor, currency, locale);
 
-  const geometry = useMemo(() => {
+  const model = useMemo(() => {
     const points = seriesByRange[range] ?? [];
-    const width = 640;
-    const height = 220;
-    const padX = 16;
-    const padY = 24;
-    const hasActivity = points.some((p) => p.cumulativeExpenses > 0 || p.dailyExpenses > 0);
+    const hasActivity = points.some((p) => p.dailyExpenses > 0);
     if (points.length === 0 || !hasActivity) {
-      return { width, height, padX, padY, empty: true as const, points: [] as EvolutionPoint[] };
+      return { empty: true as const, points: [] as EvolutionPoint[] };
     }
-    const maxY = Math.max(
-      1,
-      ...points.map((p) => p.cumulativeExpenses),
-      ...points.map((p) => p.budgetLimit ?? 0),
-      ...points.map((p) => p.dailyExpenses),
+
+    const periodLimit = points[0]?.budgetLimit ?? null;
+    const dailyBudget =
+      periodLimit !== null && periodLimit > 0
+        ? Math.round(periodLimit / Math.max(points.length, 1))
+        : null;
+    const peakDaily = Math.max(...points.map((p) => p.dailyExpenses));
+    const maxY = niceMax(Math.max(peakDaily, dailyBudget ?? 0));
+
+    // Highlight the peak spend day (ties → most recent).
+    let peakIndex = 0;
+    for (let i = 0; i < points.length; i++) {
+      if (points[i]!.dailyExpenses >= points[peakIndex]!.dailyExpenses) peakIndex = i;
+    }
+
+    const tickCount = 5;
+    const ticks = Array.from({ length: tickCount + 1 }, (_, i) =>
+      Math.round(maxY - (maxY / tickCount) * i),
     );
-    const xAt = (i: number) =>
-      padX + (points.length <= 1 ? 0 : (i / (points.length - 1)) * (width - padX * 2));
-    const yAt = (v: number) => padY + (1 - v / maxY) * (height - padY * 2);
 
-    const spendPath = points
-      .map((p, i) => `${i === 0 ? "M" : "L"}${xAt(i).toFixed(1)},${yAt(p.cumulativeExpenses).toFixed(1)}`)
-      .join(" ");
-    const areaPath = `${spendPath} L${xAt(points.length - 1).toFixed(1)},${(height - padY).toFixed(1)} L${xAt(0).toFixed(1)},${(height - padY).toFixed(1)} Z`;
-    const budget = points[0]?.budgetLimit;
-    const budgetY = budget === null || budget === undefined ? null : yAt(budget);
-    const last = points[points.length - 1]!;
-
-    // Daily bars under the cumulative line for denser chrome.
-    const gap = points.length > 40 ? 1 : points.length > 20 ? 2 : 3;
-    const innerW = width - padX * 2;
-    const barW = Math.max(2, (innerW - gap * (points.length - 1)) / points.length);
+    const labelIndexes =
+      points.length <= 4
+        ? points.map((_, i) => i)
+        : [0, Math.floor((points.length - 1) / 3), Math.floor(((points.length - 1) * 2) / 3), points.length - 1];
 
     return {
-      width,
-      height,
-      padX,
-      padY,
       empty: false as const,
       points,
-      spendPath,
-      areaPath,
-      budgetY,
-      last,
-      lastX: xAt(points.length - 1),
-      lastY: yAt(last.cumulativeExpenses),
-      barW,
-      gap,
-      yAt,
-      xAt,
       maxY,
+      dailyBudget,
+      peakIndex,
+      ticks,
+      labelIndexes: [...new Set(labelIndexes)],
     };
   }, [range, seriesByRange]);
 
@@ -87,106 +99,181 @@ export function BudgetEvolutionChart({
     }
   };
 
+  const focusedIndex =
+    activeIndex !== null && !model.empty
+      ? activeIndex
+      : !model.empty
+        ? model.peakIndex
+        : null;
+
   return (
-    <section className="dashboard-card min-h-[20rem] overflow-hidden p-5 lg:p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="inline-flex items-center gap-2 text-sm font-semibold text-fg">
-          <ChartNoAxesColumn size={16} aria-hidden className="text-brand" />
-          {t("dashboard.evolution")}
-        </h2>
-        <div className="inline-flex rounded-full border border-border bg-surface-2 p-0.5">
-          {RANGES.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRange(r)}
-              className={clsx(
-                "rounded-full px-2.5 py-1 text-xs font-medium transition",
-                range === r ? "brand-gradient text-brand-fg" : "text-muted hover:text-fg",
-              )}
-            >
-              {rangeLabel(r)}
-            </button>
-          ))}
+    <section className="dashboard-card flex flex-col justify-between p-5 lg:p-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
+            <TrendingUp size={16} aria-hidden />
+          </div>
+          <h2 className="text-base font-semibold text-fg">{t("dashboard.evolution")}</h2>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="inline-flex items-center gap-1.5 rounded-xl border border-[#262e4e] bg-[#191e33] px-1 py-1">
+            {RANGES.map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => {
+                  setRange(r);
+                  setActiveIndex(null);
+                }}
+                className={clsx(
+                  "rounded-lg px-2.5 py-1.5 text-xs font-medium transition",
+                  range === r
+                    ? "bg-brand text-brand-fg shadow-sm"
+                    : "text-slate-300 hover:text-white",
+                )}
+              >
+                {rangeLabel(r)}
+              </button>
+            ))}
+          </div>
+          <div className="hidden items-center gap-3 text-xs sm:flex">
+            <span className="inline-flex items-center gap-1.5 text-slate-300">
+              <span className="size-2.5 rounded-full bg-purple-500" />
+              {t("dashboard.evolutionSpent")}
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-slate-400">
+              <span className="inline-block h-0 w-3 border-t-2 border-dashed border-slate-500" />
+              {t("dashboard.evolutionBudget")}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="mb-3 flex items-center gap-4 text-xs text-muted">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-accent-blue" />
-          {t("dashboard.evolutionSpent")}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block w-4 border-t border-dashed border-ok" />
-          {t("dashboard.evolutionBudget")}
-        </span>
-      </div>
+      {!model.empty ? (
+        <div className="relative h-64 w-full select-none">
+          {/* Grid + Y labels */}
+          <div className="pointer-events-none absolute inset-0 flex flex-col justify-between text-[11px] text-slate-500">
+            {model.ticks.map((tick, i) => {
+              const isBudgetTick =
+                model.dailyBudget !== null &&
+                Math.abs(tick - model.dailyBudget) <= model.maxY / 20;
+              return (
+                <div
+                  key={`${tick}-${i}`}
+                  className={clsx(
+                    "flex items-center justify-between pb-1",
+                    i < model.ticks.length - 1 && !isBudgetTick
+                      ? "border-b border-white/[0.04]"
+                      : null,
+                  )}
+                >
+                  <span className={isBudgetTick ? "text-slate-400" : undefined}>
+                    {i === model.ticks.length - 1
+                      ? `0 ${currency}`
+                      : formatAxis(tick, locale)}
+                  </span>
+                  <div
+                    className={clsx(
+                      "mx-3 w-full",
+                      isBudgetTick
+                        ? "border-t-2 border-dashed border-slate-500/60"
+                        : "border-t border-white/[0.04]",
+                    )}
+                  />
+                </div>
+              );
+            })}
+          </div>
 
-      {!geometry.empty ? (
-        <div className="relative">
-          <svg
-            viewBox={`0 0 ${geometry.width} ${geometry.height}`}
-            className="h-auto w-full"
+          {/* Bars */}
+          <div
+            className="absolute inset-0 ml-10 flex items-end justify-between px-2 pt-6 pb-6"
             role="img"
             aria-label={t("dashboard.evolution")}
           >
-            <defs>
-              <linearGradient id="spendFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#7c5cff" stopOpacity="0.4" />
-                <stop offset="100%" stopColor="#7c5cff" stopOpacity="0.02" />
-              </linearGradient>
-              <linearGradient id="barFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a78bfa" />
-                <stop offset="100%" stopColor="#6366f1" />
-              </linearGradient>
-            </defs>
-            {geometry.points.map((p, i) => {
-              const x = geometry.padX + i * (geometry.barW + geometry.gap);
-              const h = Math.max(0, geometry.yAt(0) - geometry.yAt(p.dailyExpenses));
-              return (
-                <rect
-                  key={p.date}
-                  x={x}
-                  y={geometry.yAt(p.dailyExpenses)}
-                  width={geometry.barW}
-                  height={h}
-                  rx={Math.min(3, geometry.barW / 2)}
-                  fill="url(#barFill)"
-                  opacity={0.45}
-                />
-              );
-            })}
-            {geometry.budgetY !== null ? (
-              <line
-                x1={geometry.padX}
-                x2={geometry.width - geometry.padX}
-                y1={geometry.budgetY}
-                y2={geometry.budgetY}
-                stroke="#34d399"
-                strokeWidth="2"
-                strokeDasharray="5 5"
-                opacity="0.9"
+            {model.dailyBudget !== null ? (
+              <div
+                className="pointer-events-none absolute right-2 left-2 z-10 border-t-2 border-dashed border-slate-500/60"
+                style={{ bottom: `${(model.dailyBudget / model.maxY) * 100}%` }}
+                aria-hidden
               />
             ) : null}
-            <path d={geometry.areaPath} fill="url(#spendFill)" />
-            <path d={geometry.spendPath} fill="none" stroke="#60a5fa" strokeWidth="2.5" />
-            <circle cx={geometry.lastX} cy={geometry.lastY} r="4.5" fill="#60a5fa" />
-          </svg>
-          <div className="pointer-events-none absolute right-[4%] top-[8%] rounded-lg bg-white/10 px-2.5 py-1.5 text-xs backdrop-blur">
-            <p className="font-semibold tabular text-fg">
-              {formatAmount(geometry.last.cumulativeExpenses)}
-            </p>
-            <p className="text-muted">{t("common.today")}</p>
+            {model.points.map((point, index) => {
+              const heightPct =
+                model.maxY > 0
+                  ? Math.max(
+                      point.dailyExpenses > 0 ? 4 : 0,
+                      (point.dailyExpenses / model.maxY) * 100,
+                    )
+                  : 0;
+              const focused = focusedIndex === index;
+              const tipOpen = activeIndex === index || (activeIndex === null && focused);
+
+              return (
+                <div
+                  key={point.date}
+                  className="relative flex h-full min-w-0 flex-1 flex-col items-center justify-end"
+                >
+                  {tipOpen && point.dailyExpenses > 0 ? (
+                    <div className="absolute -top-2 z-20 -translate-y-full whitespace-nowrap rounded-xl border border-purple-500/50 bg-[#0a0d17] px-2.5 py-1.5 text-center shadow-xl glow-purple transition-transform duration-300">
+                      <div className="text-[10px] font-medium text-slate-400">
+                        {formatDate(point.date, locale)}
+                      </div>
+                      <div className="flex items-center justify-center gap-1 text-xs font-bold text-white">
+                        <span className="inline-block size-2 rounded-full bg-purple-400" />
+                        {formatAmount(point.dailyExpenses)}
+                      </div>
+                      <div className="mx-auto mt-0.5 -mb-1 size-2 rotate-45 border-r border-b border-purple-500/50 bg-[#0a0d17]" />
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    aria-label={`${formatDate(point.date, locale)}: ${formatAmount(point.dailyExpenses)}`}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onMouseLeave={() => setActiveIndex(null)}
+                    onFocus={() => setActiveIndex(index)}
+                    onBlur={() => setActiveIndex(null)}
+                    className={clsx(
+                      "rounded-t-md transition-all duration-300",
+                      focused
+                        ? "w-3 bg-gradient-to-t from-purple-600 via-purple-400 to-pink-300 shadow-lg shadow-purple-500/50 ring-2 ring-purple-400/50 hover:scale-105"
+                        : "w-2.5 bg-gradient-to-t from-purple-800 to-indigo-500 opacity-85 hover:scale-105 hover:opacity-100",
+                      model.points.length > 60 && !focused && "w-1.5",
+                      model.points.length > 120 && !focused && "w-1",
+                    )}
+                    style={{ height: `${heightPct}%` }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bottom date ticks */}
+          <div className="absolute right-0 bottom-0 left-10 flex justify-between px-4 text-[11px] font-medium text-slate-400">
+            {model.labelIndexes.map((i) => (
+              <span key={model.points[i]!.date}>
+                {formatDate(model.points[i]!.date, locale)}
+              </span>
+            ))}
           </div>
         </div>
       ) : (
-        <div className="relative">
-          <svg viewBox="0 0 640 220" className="h-auto w-full" aria-hidden>
-            {[40, 80, 120, 160].map((y) => (
-              <line key={y} x1="16" x2="624" y1={y} y2={y} stroke="rgba(255,255,255,0.06)" />
+        <div className="relative h-64 w-full">
+          <div className="absolute inset-0 flex flex-col justify-between text-[11px] text-slate-500">
+            {["5k", "4k", "3k", "2k", "1k", `0 ${currency}`].map((label, i) => (
+              <div
+                key={label}
+                className={clsx(
+                  "flex items-center justify-between pb-1",
+                  i < 5 ? "border-b border-white/[0.04]" : null,
+                )}
+              >
+                <span>{label}</span>
+                <div className="mx-3 w-full border-t border-white/[0.04]" />
+              </div>
             ))}
-            <line x1="16" x2="624" y1="100" y2="100" stroke="#34d399" strokeWidth="2" strokeDasharray="5 5" opacity="0.35" />
-          </svg>
+          </div>
           <p className="absolute inset-0 flex items-center justify-center text-sm text-muted">
             {t("dashboard.categoriesEmpty")}
           </p>
