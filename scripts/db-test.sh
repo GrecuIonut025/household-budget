@@ -18,4 +18,4 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
   psql "$TEST_URL" -v ON_ERROR_STOP=1 -q -f "$f"
 done
 
-PGOPTIONS='--search_path=public,extensions' pg_prove --ext .sql -d "$DB_NAME" -h "$(echo "$BASE_URL" | sed -E 's#.*@([^:/]+).*#\1#')" -U postgres "$ROOT"/supabase/tests/database/*.sql
+PGOPTIONS='--search_path=public,extensions' pg_prove --ext .sql -d "$TEST_URL" "$ROOT"/supabase/tests/database/*.sql
