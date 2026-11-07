@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n/provider";
 import { getTranslator } from "@/lib/i18n/server";
@@ -54,10 +53,18 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/*
+          Native blocking boot script (not next/script): React 19 warns when a
+          <script> is rendered via a client component / next/script on the client,
+          and those tags never re-execute. SSR into <head> still prevents FOUC.
+        */}
+        <script
+          id="hb-theme-boot"
+          dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }}
+        />
+      </head>
       <body className="min-h-full">
-        <Script id="hb-theme-boot" strategy="beforeInteractive">
-          {THEME_BOOT_SCRIPT}
-        </Script>
         <ThemeProvider>
           <I18nProvider locale={locale} messages={messages}>
             {children}
