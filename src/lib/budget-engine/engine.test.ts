@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeBudgetSummary,
   computeHouseholdBalance,
+  computeTomorrowAllowance,
   daysLeftInPeriod,
   projectSavingsGoal,
   spendingByMember,
@@ -68,6 +69,7 @@ describe("computeBudgetSummary", () => {
     expect(summary.daysLeft).toBe(24);
     expect(summary.dailyAllowance).toBe(m(60.75));
     expect(summary.todaySpent).toBe(m(150));
+    expect(summary.todayIncome).toBe(0);
     expect(summary.todayRemaining).toBe(m(60.75) - m(150));
   });
 
@@ -120,6 +122,127 @@ describe("computeBudgetSummary", () => {
     expect(s.expenses).toBe(0);
     expect(s.remaining).toBe(m(3000));
     expect(s.dailyAllowance).toBe(Math.floor(m(3000) / 24));
+  });
+});
+
+describe("computeTomorrowAllowance", () => {
+  const base = computeBudgetSummary({ budget, transactions, reservations, today: "2026-11-07" });
+
+  it("divides remaining after today's spending by days left excluding today", () => {
+    const t = computeTomorrowAllowance({
+      spendingLimit: base.spendingLimit,
+      todayIncome: base.todayIncome,
+      expenses: base.expenses,
+      reservedTotal: base.reservedTotal,
+      daysLeft: base.daysLeft,
+      dailyAllowance: base.dailyAllowance,
+    });
+    // remaining 1308 / 23 days from tomorrow
+    expect(t.daysFromTomorrow).toBe(23);
+    expect(t.remainingAfterToday).toBe(m(1308));
+    expect(t.tomorrowAllowance).toBe(Math.floor(m(1308) / 23));
+    expect(t.overBudget).toBe(false);
+    expect(t.allowanceDelta).toBe(t.tomorrowAllowance! - base.dailyAllowance!);
+  });
+
+  it("raises tomorrow's rate when income arrives today", () => {
+    const withIncome = computeBudgetSummary({
+      budget,
+      transactions: [...transactions, tx({ type: "income", amount: m(230), occurredOn: "2026-11-07" })],
+      reservations,
+      today: "2026-11-07",
+    });
+    expect(withIncome.todayIncome).toBe(m(230));
+    const before = computeTomorrowAllowance({
+      spendingLimit: base.spendingLimit,
+      todayIncome: base.todayIncome,
+      expenses: base.expenses,
+      reservedTotal: base.reservedTotal,
+      daysLeft: base.daysLeft,
+      dailyAllowance: base.dailyAllowance,
+    });
+    const after = computeTomorrowAllowance({
+      spendingLimit: withIncome.spendingLimit,
+      todayIncome: withIncome.todayIncome,
+      expenses: withIncome.expenses,
+      reservedTotal: withIncome.reservedTotal,
+      daysLeft: withIncome.daysLeft,
+      dailyAllowance: withIncome.dailyAllowance,
+    });
+    expect(after.tomorrowAllowance).toBe(before.tomorrowAllowance! + m(10)); // 230 / 23
+    expect(after.allowanceDelta).toBeGreaterThan(before.allowanceDelta!);
+  });
+
+  it("clamps to zero and flags over-budget when remaining is negative", () => {
+    const over = computeBudgetSummary({
+      budget: { ...budget, spendingLimit: m(1000) },
+      transactions,
+      reservations,
+      today: "2026-11-07",
+    });
+    const t = computeTomorrowAllowance({
+      spendingLimit: over.spendingLimit,
+      todayIncome: over.todayIncome,
+      expenses: over.expenses,
+      reservedTotal: over.reservedTotal,
+      daysLeft: over.daysLeft,
+      dailyAllowance: over.dailyAllowance,
+    });
+    expect(t.remainingAfterToday).toBeLessThan(0);
+    expect(t.tomorrowAllowance).toBe(0);
+    expect(t.overBudget).toBe(true);
+  });
+
+  it("omits the tomorrow line on the last day of the period", () => {
+    const last = computeBudgetSummary({ budget, transactions, reservations, today: "2026-11-30" });
+    expect(last.daysLeft).toBe(1);
+    const t = computeTomorrowAllowance({
+      spendingLimit: last.spendingLimit,
+      todayIncome: last.todayIncome,
+      expenses: last.expenses,
+      reservedTotal: last.reservedTotal,
+      daysLeft: last.daysLeft,
+      dailyAllowance: last.dailyAllowance,
+    });
+    expect(t.daysFromTomorrow).toBe(0);
+    expect(t.tomorrowAllowance).toBeNull();
+    expect(t.allowanceDelta).toBeNull();
+  });
+
+  it("holds active reservations out of tomorrow's pool", () => {
+    const withRes = computeTomorrowAllowance({
+      spendingLimit: base.spendingLimit,
+      todayIncome: 0,
+      expenses: base.expenses,
+      reservedTotal: base.reservedTotal,
+      daysLeft: base.daysLeft,
+      dailyAllowance: base.dailyAllowance,
+    });
+    const withoutRes = computeTomorrowAllowance({
+      spendingLimit: base.spendingLimit,
+      todayIncome: 0,
+      expenses: base.expenses,
+      reservedTotal: 0,
+      daysLeft: base.daysLeft,
+      dailyAllowance: base.dailyAllowance,
+    });
+    expect(withRes.tomorrowAllowance).toBeLessThan(withoutRes.tomorrowAllowance!);
+    expect(withoutRes.remainingAfterToday! - withRes.remainingAfterToday!).toBe(base.reservedTotal);
+  });
+
+  it("returns nulls without a spending limit", () => {
+    const t = computeTomorrowAllowance({
+      spendingLimit: null,
+      todayIncome: 0,
+      expenses: base.expenses,
+      reservedTotal: base.reservedTotal,
+      daysLeft: base.daysLeft,
+      dailyAllowance: null,
+    });
+    expect(t.tomorrowAllowance).toBeNull();
+    expect(t.allowanceDelta).toBeNull();
+    expect(t.remainingAfterToday).toBeNull();
+    expect(t.overBudget).toBe(false);
   });
 });
 

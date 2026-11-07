@@ -60,8 +60,30 @@ export interface BudgetSummary {
   /** spendable per remaining day (floored to whole minor units); null without a limit or once over */
   dailyAllowance: Minor | null;
   todaySpent: Minor;
+  /** income dated today (used when projecting tomorrow's rate) */
+  todayIncome: Minor;
   /** allowance for today minus what was already spent today; null when there is no allowance */
   todayRemaining: Minor | null;
+}
+
+/**
+ * Forward-looking daily rate after today's actual spending and today's income.
+ * Distinct from `dailyAllowance`, which stays stable through the day.
+ */
+export interface TomorrowAllowance {
+  /** days left after today (0 on the last day of the period) */
+  daysFromTomorrow: number;
+  /**
+   * Spendable per day from tomorrow onward (floored). Null without a limit or when there is no
+   * tomorrow left in the period. Clamped to 0 when the period is already over budget.
+   */
+  tomorrowAllowance: Minor | null;
+  /** `tomorrowAllowance - dailyAllowance` when both are defined; shows the effect of today's activity */
+  allowanceDelta: Minor | null;
+  /** true when limit − expenses − reserved + today's income is negative */
+  overBudget: boolean;
+  /** spendable pool used for the tomorrow rate (before ÷ by days); null without a limit */
+  remainingAfterToday: Minor | null;
 }
 
 export interface HouseholdBalance {

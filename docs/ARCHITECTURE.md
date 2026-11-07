@@ -203,6 +203,7 @@ kept consistent by running the **same scenario and numbers** in both test suites
 | Function | Purpose |
 | --- | --- |
 | `computeBudgetSummary` | income, actual expenses, grocery/shared/individual spending, reservations, remaining, days left, daily allowance |
+| `computeTomorrowAllowance` | forward daily rate after today's spending/income ÷ days left excluding today, delta vs today's allowance, over-budget clamp |
 | `computeHouseholdBalance` | opening balance + income − expenses = balance; minus savings contributions = available |
 | `spendingByMember` | income/expenses per member (`null` = unattributed) |
 | `projectSavingsGoal` | progress, monthly rate over a 30–90 day trailing window, required monthly amount, projected completion, status |
@@ -215,6 +216,9 @@ Rules:
 - `dailyAllowance = max(0, limit − spentBeforeToday − activeReserved) / daysLeft` (today included, floored to a whole
   bani). Today's own spending is excluded from the numerator, so the allowance is stable during the day and
   recalculated each morning; `todayRemaining = allowance − todaySpent`.
+- `tomorrowAllowance = max(0, limit − expenses − activeReserved + todayIncome) / (daysLeft − 1)` (floored). Shown on
+  the dashboard under today's allowance with a delta vs `dailyAllowance`. Omitted on the last day; clamped to 0 with
+  an over-budget warning when the pool is negative. Active reservations stay held back and are called out in the UI.
 - No `spending_limit` → `remaining`, `dailyAllowance` are `null`. The UI shows a prompt instead of inventing a number.
 - SQL entry points: `budget_summary(budget_id, today)`, `spending_by_member(...)`, views `household_balances`,
   `savings_goal_progress`, `shopping_list_totals` (all `security_invoker`, so RLS applies).

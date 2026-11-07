@@ -6,6 +6,7 @@ import { TransactionList } from "@/components/transaction-list";
 import { Badge, Card, CardTitle, EmptyState, PageHeader, ProgressBar, Stat, buttonClass } from "@/components/ui";
 import {
   computeBudgetSummary,
+  computeTomorrowAllowance,
   projectSavingsGoal,
   spendingByMember,
   type EngineContribution,
@@ -63,6 +64,17 @@ export default async function DashboardPage() {
         transactions: engineTransactions,
         reservations: toEngineReservations(reservations),
         today,
+      })
+    : null;
+
+  const tomorrow = summary
+    ? computeTomorrowAllowance({
+        spendingLimit: summary.spendingLimit,
+        todayIncome: summary.todayIncome,
+        expenses: summary.expenses,
+        reservedTotal: summary.reservedTotal,
+        daysLeft: summary.daysLeft,
+        dailyAllowance: summary.dailyAllowance,
       })
     : null;
 
@@ -148,13 +160,50 @@ export default async function DashboardPage() {
                   <Stat
                     label={t("common.today")}
                     value={money(summary.dailyAllowance)}
-                    hint={t("dashboard.allowanceHint", { amount: money(summary.remaining ?? 0), days: t("common.days", { count: summary.daysLeft }) })}
+                    hint={t("dashboard.allowanceHint", {
+                      amount: money(Math.max(summary.remaining ?? 0, 0)),
+                      days: t("common.days", { count: summary.daysLeft }),
+                    })}
                   />
                   <p className={`mt-3 text-sm font-medium ${summary.todayRemaining < 0 ? "text-danger" : "text-ok"}`}>
                     {summary.todayRemaining < 0
                       ? t("dashboard.todayOver", { amount: money(-summary.todayRemaining) })
                       : t("dashboard.todayLeft", { amount: money(summary.todayRemaining) })}
                   </p>
+                  {summary.remaining !== null && summary.remaining < 0 ? (
+                    <p className="mt-1 text-sm font-medium text-danger">
+                      {t("dashboard.overBudget", { amount: money(-summary.remaining) })}
+                    </p>
+                  ) : null}
+                  {summary.reservedTotal > 0 ? (
+                    <p className="mt-2 text-xs text-muted">
+                      {t("dashboard.allowanceReserved", { amount: money(summary.reservedTotal) })}
+                    </p>
+                  ) : null}
+                  {tomorrow?.tomorrowAllowance !== null && tomorrow?.tomorrowAllowance !== undefined ? (
+                    <div className="mt-4 border-t border-border pt-3">
+                      <Stat
+                        label={t("dashboard.tomorrowAllowance")}
+                        value={money(tomorrow.tomorrowAllowance)}
+                        tone={tomorrow.overBudget ? "danger" : "default"}
+                      />
+                      {tomorrow.overBudget ? (
+                        <p className="mt-2 text-sm font-medium text-danger">{t("dashboard.tomorrowOverBudget")}</p>
+                      ) : tomorrow.allowanceDelta !== null ? (
+                        <p
+                          className={`mt-2 text-sm font-medium ${
+                            tomorrow.allowanceDelta > 0 ? "text-ok" : tomorrow.allowanceDelta < 0 ? "text-danger" : "text-muted"
+                          }`}
+                        >
+                          {tomorrow.allowanceDelta > 0
+                            ? t("dashboard.allowanceDeltaUp", { amount: money(tomorrow.allowanceDelta) })
+                            : tomorrow.allowanceDelta < 0
+                              ? t("dashboard.allowanceDeltaDown", { amount: money(-tomorrow.allowanceDelta) })
+                              : t("dashboard.allowanceDeltaSame")}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </>
               )}
             </Card>

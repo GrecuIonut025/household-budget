@@ -9,6 +9,7 @@ import type {
   HouseholdBalance,
   MemberSpending,
   SavingsProjection,
+  TomorrowAllowance,
 } from "./types";
 
 function sum(values: Iterable<Minor>): Minor {
@@ -50,6 +51,7 @@ export function computeBudgetSummary(input: {
   const individualExpenses = sum(expenses.filter((t) => t.scope === "individual").map((t) => t.amount));
   const spentBeforeToday = sum(expenses.filter((t) => t.occurredOn < today).map((t) => t.amount));
   const todaySpent = sum(expenses.filter((t) => t.occurredOn === today).map((t) => t.amount));
+  const todayIncome = sum(inPeriod.filter((t) => t.type === "income" && t.occurredOn === today).map((t) => t.amount));
 
   const active = reservations.filter((r) => r.status === "active");
   const reservedTotal = sum(active.map((r) => r.amount));
@@ -83,7 +85,66 @@ export function computeBudgetSummary(input: {
     daysLeft,
     dailyAllowance,
     todaySpent,
+    todayIncome,
     todayRemaining: dailyAllowance === null ? null : dailyAllowance - todaySpent,
+  };
+}
+
+/**
+ * Daily rate from tomorrow onward, after today's actual spending and today's income.
+ *
+ * - Numerator: `spendingLimit − expenses − activeReserved + todayIncome`. Today's income raises
+ *   the pool (mid-period deposit lifts tomorrow's rate); today's expenses and active reservations
+ *   reduce it. Reservations are never treated as expenses. Earlier-period income is not added —
+ *   raise the spending limit to allocate it, matching the morning `dailyAllowance` envelope.
+ * - Denominator: days left excluding today.
+ * - Negative pool → 0 with `overBudget`.
+ * - Last day of the period (or period over) → no tomorrow line (`tomorrowAllowance` null).
+ */
+export function computeTomorrowAllowance(input: {
+  spendingLimit: Minor | null;
+  /** income dated today (earlier-period income is not re-added on top of the limit) */
+  todayIncome: Minor;
+  expenses: Minor;
+  reservedTotal: Minor;
+  daysLeft: number;
+  dailyAllowance: Minor | null;
+}): TomorrowAllowance {
+  const { spendingLimit, todayIncome, expenses, reservedTotal, daysLeft, dailyAllowance } = input;
+  const daysFromTomorrow = Math.max(0, daysLeft - 1);
+
+  if (spendingLimit === null) {
+    return {
+      daysFromTomorrow,
+      tomorrowAllowance: null,
+      allowanceDelta: null,
+      overBudget: false,
+      remainingAfterToday: null,
+    };
+  }
+
+  const remainingAfterToday = spendingLimit - expenses - reservedTotal + todayIncome;
+  const overBudget = remainingAfterToday < 0;
+
+  if (daysFromTomorrow === 0) {
+    return {
+      daysFromTomorrow,
+      tomorrowAllowance: null,
+      allowanceDelta: null,
+      overBudget,
+      remainingAfterToday,
+    };
+  }
+
+  const tomorrowAllowance = Math.floor(Math.max(0, remainingAfterToday) / daysFromTomorrow);
+  const allowanceDelta = dailyAllowance === null ? null : tomorrowAllowance - dailyAllowance;
+
+  return {
+    daysFromTomorrow,
+    tomorrowAllowance,
+    allowanceDelta,
+    overBudget,
+    remainingAfterToday,
   };
 }
 
