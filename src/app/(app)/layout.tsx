@@ -2,8 +2,10 @@ import Link from "next/link";
 import { LogOut, Settings } from "lucide-react";
 import { signOut } from "@/app/(auth)/actions";
 import { BottomNav, SidebarNav } from "@/components/nav";
+import { NotificationsBell } from "@/components/notifications/bell";
 import { SetupRequired } from "@/components/setup-required";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { getNotifications } from "@/lib/data/community";
 import { getMembers, requireAppContext } from "@/lib/data/context";
 import { getTranslator } from "@/lib/i18n/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
@@ -24,6 +26,10 @@ export default async function AppLayout({
   const ctx = await requireAppContext();
   const { t } = await getTranslator();
   const members = await getMembers(ctx.active.household.id);
+  const notifications = await getNotifications(ctx.user.id, 20).catch(() => ({
+    items: [],
+    unreadCount: 0,
+  }));
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[16rem_1fr]">
@@ -92,6 +98,12 @@ export default async function AppLayout({
           <ThemeToggle variant="pill" />
 
           <div className="flex items-center justify-center gap-1">
+            <NotificationsBell
+              items={notifications.items}
+              unreadCount={notifications.unreadCount}
+              t={t}
+              compact
+            />
             <Link
               href="/settings"
               className="inline-flex size-10 items-center justify-center rounded-2xl text-sidebar-muted transition hover:bg-sidebar-hover hover:text-sidebar-fg"
@@ -122,6 +134,11 @@ export default async function AppLayout({
             </div>
           </div>
           <p className="min-w-0 flex-1 truncate text-sm font-bold">{t("app.name")}</p>
+          <NotificationsBell
+            items={notifications.items}
+            unreadCount={notifications.unreadCount}
+            t={t}
+          />
           <ThemeToggle compact />
         </header>
         <main className="mx-auto w-full max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 md:px-7 md:pb-10 md:pt-7">

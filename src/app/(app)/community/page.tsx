@@ -3,14 +3,15 @@ import Link from "next/link";
 import clsx from "clsx";
 import {
   ArrowRight,
-  Heart,
   Plus,
   Search,
+  Share2,
   Sparkles,
   Target,
 } from "lucide-react";
+import { publishRecipeToCommunity } from "@/app/actions/community";
+import { FeedInfinite } from "@/components/community/feed-infinite";
 import { TipCard } from "@/components/community/tip-card";
-import { FavoriteButton } from "@/components/recipes/favorite-button";
 import { EmptyState, ProgressBar, buttonClass, inputClass } from "@/components/ui";
 import { COMMUNITY_TIPS } from "@/lib/community/tips";
 import { computeBudgetSummary } from "@/lib/budget-engine";
@@ -22,12 +23,14 @@ import {
   toEngineReservations,
   toEngineTransactions,
 } from "@/lib/data/budget";
+import { getCommunityFeedPage } from "@/lib/data/community";
 import { requireAppContext } from "@/lib/data/context";
-import { getImageUrls, getRecipesWithIngredients } from "@/lib/data/recipes";
+import { getRecipesWithIngredients } from "@/lib/data/recipes";
 import { canWrite, isAdmin } from "@/lib/data/types";
 import { todayFor } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
 import { formatMoney, toMinor } from "@/lib/money";
+import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslator();
@@ -48,19 +51,24 @@ export default async function CommunityPage({
   const writer = canWrite(role);
   const admin = isAdmin(role);
   const today = todayFor(household.timezone);
-  const money = (minor: number) =>
-    formatMoney(minor, household.currency, locale);
+  const money = (minor: number) => formatMoney(minor, household.currency, locale);
 
   const tab =
-    params.tab === "recipes" || params.tab === "tips" || params.tab === "favorites"
-      ? params.tab
-      : "all";
+    params.tab === "tips" || params.tab === "share" ? params.tab : "feed";
   const q = (params.q ?? "").trim().toLowerCase();
 
-  const [recipes, budget, categories] = await Promise.all([
-    getRecipesWithIngredients(household.id),
+  const [feed, budget, categories, householdRecipes] = await Promise.all([
+    tab === "feed"
+      ? getCommunityFeedPage({ currentUserId: ctx.user.id }).catch(() => ({
+          items: [] as Awaited<ReturnType<typeof getCommunityFeedPage>>["items"],
+          nextCursor: null,
+        }))
+      : Promise.resolve({ items: [], nextCursor: null }),
     getCurrentBudget(household.id, today),
     getCategories(household.id),
+    tab === "share" && writer
+      ? getRecipesWithIngredients(household.id)
+      : Promise.resolve([]),
   ]);
 
   const periodTransactions = budget
@@ -83,20 +91,23 @@ export default async function CommunityPage({
       })
     : null;
 
-  const favorites = recipes.filter((r) => r.is_favorite);
-  const filteredRecipes = recipes.filter((r) => {
-    if (tab === "favorites" && !r.is_favorite) return false;
-    if (tab === "tips") return false;
-    if (!q) return true;
-    return (
-      r.title.toLowerCase().includes(q) ||
-      r.tags.some((tag) => tag.toLowerCase().includes(q)) ||
-      (r.description?.toLowerCase().includes(q) ?? false)
-    );
-  });
+  let unpublished: { id: string; title: string }[] = [];
+  if (tab === "share" && writer && householdRecipes.length > 0) {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("recipes")
+      .select("id, title, community_published_at")
+      .eq("household_id", household.id)
+      .is("community_published_at", null)
+      .order("title");
+    unpublished = (data ?? []).map((r) => ({
+      id: r.id as string,
+      title: r.title as string,
+    }));
+  }
 
   const filteredTips = COMMUNITY_TIPS.filter((tip) => {
-    if (tab === "recipes" || tab === "favorites") return false;
+    if (tab !== "tips") return false;
     if (!q) return true;
     return (
       t(tip.titleKey).toLowerCase().includes(q) ||
@@ -104,14 +115,10 @@ export default async function CommunityPage({
     );
   });
 
-  const imageUrls = await getImageUrls(
-    filteredRecipes.map((r) => r.image_path).filter(Boolean) as string[],
-  );
-
   const href = (next: Partial<Search>) => {
     const merged = { tab: params.tab, q: params.q, ...next };
     const qs = new URLSearchParams();
-    if (merged.tab && merged.tab !== "all") qs.set("tab", merged.tab);
+    if (merged.tab && merged.tab !== "feed") qs.set("tab", merged.tab);
     if (merged.q) qs.set("q", merged.q);
     const s = qs.toString();
     return s ? `/community?${s}` : "/community";
@@ -124,9 +131,6 @@ export default async function CommunityPage({
         ? "border-brand bg-brand-soft text-brand-strong"
         : "border-border bg-surface text-muted hover:text-fg",
     );
-
-  const showRecipes = tab === "all" || tab === "recipes" || tab === "favorites";
-  const showTips = tab === "all" || tab === "tips";
 
   return (
     <div className="space-y-6">
@@ -145,19 +149,8 @@ export default async function CommunityPage({
               {t("community.title")}
             </h1>
             <p className="mt-1.5 max-w-xl text-sm font-medium text-slate-300 lg:text-base">
-              {t("community.subtitle")}
+              {t("community.subtitleGlobal")}
             </p>
-            <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-400">
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-                {t("community.statsRecipes", { count: recipes.length })}
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-                {t("community.statsFavorites", { count: favorites.length })}
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">
-                {t("community.statsTips", { count: COMMUNITY_TIPS.length })}
-              </span>
-            </div>
           </div>
           <p className="whitespace-pre-line font-handwriting rotate-[-2deg] text-2xl tracking-wide text-slate-200 drop-shadow-md md:pr-2 md:text-right lg:text-3xl">
             {t("community.heroQuote")}
@@ -222,156 +215,115 @@ export default async function CommunityPage({
       </section>
 
       <div className="space-y-3">
-        <form action="/community" className="relative">
-          {tab !== "all" ? <input type="hidden" name="tab" value={tab} /> : null}
-          <Search
-            size={18}
-            className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted"
-            aria-hidden
-          />
-          <input
-            name="q"
-            defaultValue={params.q ?? ""}
-            placeholder={t("community.searchPlaceholder")}
-            className={clsx(inputClass, "pl-11")}
-          />
-        </form>
+        {tab === "tips" ? (
+          <form action="/community" className="relative">
+            <input type="hidden" name="tab" value="tips" />
+            <Search
+              size={18}
+              className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted"
+              aria-hidden
+            />
+            <input
+              name="q"
+              defaultValue={params.q ?? ""}
+              placeholder={t("community.searchPlaceholder")}
+              className={clsx(inputClass, "pl-11")}
+            />
+          </form>
+        ) : null}
         <div className="flex gap-2 overflow-x-auto pb-1">
           {(
             [
-              ["all", "community.tab.all"],
-              ["recipes", "community.tab.recipes"],
+              ["feed", "community.tab.feed"],
               ["tips", "community.tab.tips"],
-              ["favorites", "community.tab.favorites"],
+              ...(writer ? ([["share", "community.tab.share"]] as const) : []),
             ] as const
           ).map(([id, label]) => (
-            <Link key={id} href={href({ tab: id === "all" ? undefined : id })} className={chip(tab === id)}>
-              {id === "favorites" ? <Heart size={14} aria-hidden /> : null}
+            <Link
+              key={id}
+              href={href({ tab: id === "feed" ? undefined : id, q: undefined })}
+              className={chip(tab === id)}
+            >
+              {id === "share" ? <Share2 size={14} aria-hidden /> : null}
               {t(label)}
             </Link>
           ))}
         </div>
       </div>
 
-      {showRecipes ? (
+      {tab === "feed" ? (
         <section className="space-y-4">
-          <div className="flex items-end justify-between gap-3">
-            <h2 className="text-base font-semibold text-fg">{t("community.recipesTitle")}</h2>
-            <Link
-              href="/recipes"
-              className="inline-flex items-center gap-1 text-xs font-medium text-purple-400 hover:text-purple-300"
-            >
-              {t("community.openRecipes")} <ArrowRight size={14} aria-hidden />
-            </Link>
-          </div>
+          <h2 className="text-base font-semibold text-fg">{t("community.feedTitle")}</h2>
+          <FeedInfinite
+            initial={feed}
+            householdId={household.id}
+            canFavorite={writer}
+            canReact={writer}
+            emptyTitle={t("community.feedEmptyTitle")}
+            emptyBody={t("community.feedEmptyBody")}
+          />
+        </section>
+      ) : null}
 
-          {filteredRecipes.length === 0 ? (
+      {tab === "tips" ? (
+        <section className="space-y-4">
+          <h2 className="text-base font-semibold text-fg">{t("community.tipsTitle")}</h2>
+          {filteredTips.length === 0 ? (
             <div className="dashboard-card p-5">
               <EmptyState
                 icon={<Sparkles size={22} aria-hidden />}
-                title={
-                  tab === "favorites"
-                    ? t("community.favoritesEmptyTitle")
-                    : t("community.recipesEmptyTitle")
-                }
-                body={
-                  tab === "favorites"
-                    ? t("community.favoritesEmptyBody")
-                    : t("community.recipesEmptyBody")
-                }
-                action={
-                  writer && tab !== "favorites" ? (
-                    <Link href="/recipes/new" className={buttonClass("primary")}>
-                      <Plus size={16} aria-hidden />
-                      {t("community.recipesEmptyCta")}
-                    </Link>
-                  ) : undefined
-                }
+                title={t("community.tipsEmptyTitle")}
+                body={t("community.tipsEmptyBody")}
               />
             </div>
           ) : (
-            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {filteredRecipes.map((recipe) => {
-                const minutes = (recipe.prep_minutes ?? 0) + (recipe.cook_minutes ?? 0);
-                const imageUrl = recipe.image_path
-                  ? (imageUrls[recipe.image_path] ?? null)
-                  : null;
-                return (
-                  <li key={recipe.id}>
-                    <article className="dashboard-card flex h-full flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-                      <div className="relative aspect-[16/10] overflow-hidden bg-surface-2">
-                        {imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={imageUrl}
-                            alt=""
-                            className="size-full object-cover transition duration-500 hover:scale-105"
-                          />
-                        ) : (
-                          <div className="grid size-full place-items-center bg-gradient-to-br from-brand-soft to-surface-2 text-brand/50">
-                            <Sparkles size={36} aria-hidden />
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                        {writer ? (
-                          <div className="absolute top-2 right-2">
-                            <FavoriteButton
-                              recipeId={recipe.id}
-                              householdId={household.id}
-                              isFavorite={recipe.is_favorite}
-                              label={
-                                recipe.is_favorite
-                                  ? t("recipes.unfavorite")
-                                  : t("recipes.favorite")
-                              }
-                              className="size-9 bg-black/35 text-white hover:text-pink-300"
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-1 flex-col gap-3 p-4">
-                        <h3 className="line-clamp-2 text-sm font-bold tracking-tight text-fg">
-                          {recipe.title}
-                        </h3>
-                        <div className="flex flex-wrap gap-3 text-[11px] text-muted">
-                          {minutes > 0 ? <span>{t("recipes.minutes", { count: minutes })}</span> : null}
-                          <span>{t("recipes.servingsCount", { count: recipe.servings })}</span>
-                          {recipe.category ? (
-                            <span>{t(`recipes.category.${recipe.category}`)}</span>
-                          ) : null}
-                        </div>
-                        {recipe.description ? (
-                          <p className="line-clamp-2 text-xs leading-relaxed text-muted">
-                            {recipe.description}
-                          </p>
-                        ) : null}
-                        <div className="mt-auto flex items-center gap-2 border-t border-border-soft pt-3">
-                          <Link
-                            href={`/recipes/${recipe.id}`}
-                            className="btn-gradient flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold"
-                          >
-                            {t("community.viewRecipe")}
-                            <ArrowRight size={14} aria-hidden />
-                          </Link>
-                        </div>
-                      </div>
-                    </article>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filteredTips.map((tip) => (
+                <TipCard key={tip.id} tip={tip} t={t} />
+              ))}
+            </div>
           )}
         </section>
       ) : null}
 
-      {showTips ? (
+      {tab === "share" && writer ? (
         <section className="space-y-4">
-          <h2 className="text-base font-semibold text-fg">{t("community.tipsTitle")}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredTips.map((tip) => (
-              <TipCard key={tip.id} tip={tip} t={t} />
-            ))}
-          </div>
+          <h2 className="text-base font-semibold text-fg">{t("community.shareTitle")}</h2>
+          <p className="text-sm text-muted">{t("community.shareBody")}</p>
+          {unpublished.length === 0 ? (
+            <div className="dashboard-card p-5">
+              <EmptyState
+                icon={<Share2 size={22} aria-hidden />}
+                title={t("community.shareEmptyTitle")}
+                body={t("community.shareEmptyBody")}
+                action={
+                  <Link href="/recipes/new" className={buttonClass("primary")}>
+                    <Plus size={16} aria-hidden />
+                    {t("community.recipesEmptyCta")}
+                  </Link>
+                }
+              />
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {unpublished.map((r) => (
+                <li
+                  key={r.id}
+                  className="dashboard-card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <p className="min-w-0 truncate text-sm font-semibold text-fg">{r.title}</p>
+                  <form action={publishRecipeToCommunity}>
+                    <input type="hidden" name="householdId" value={household.id} />
+                    <input type="hidden" name="recipeId" value={r.id} />
+                    <button type="submit" className={buttonClass("primary", "text-xs")}>
+                      <Share2 size={14} aria-hidden />
+                      {t("community.shareCta")}
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       ) : null}
     </div>
