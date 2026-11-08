@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Check, ImagePlus, LoaderCircle, Plus, Sparkles } from "lucide-react";
 import { publishRecipeToCommunity } from "@/app/actions/community";
+import { StorageImage } from "@/components/media/storage-image";
 import { Sheet } from "@/components/sheet";
 import { buttonClass } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
@@ -100,12 +101,7 @@ export function ComposeSheet({
           <div className="overflow-hidden rounded-2xl border border-border bg-surface-2">
             <div className="relative aspect-square w-full bg-surface-2">
               {selected.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={selected.imageUrl}
-                  alt=""
-                  className="size-full object-cover"
-                />
+                <StorageImage src={selected.imageUrl} sizes="(max-width: 640px) 100vw, 512px" />
               ) : (
                 <div className="grid size-full place-items-center text-brand/40">
                   <Sparkles size={40} aria-hidden />
@@ -157,14 +153,9 @@ export function ComposeSheet({
                   onClick={() => setSelectedId(recipe.id)}
                   className="flex w-full items-center gap-3 rounded-2xl border border-border bg-surface-2/50 p-2 text-left transition hover:border-brand/40 hover:bg-surface-2"
                 >
-                  <span className="size-14 shrink-0 overflow-hidden rounded-xl bg-surface-2">
+                  <span className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-surface-2">
                     {recipe.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={recipe.imageUrl}
-                        alt=""
-                        className="size-full object-cover"
-                      />
+                      <StorageImage src={recipe.imageUrl} sizes="56px" />
                     ) : (
                       <span className="grid size-full place-items-center text-brand/40">
                         <Sparkles size={18} aria-hidden />

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChefHat, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { AuthorChip } from "@/components/community/author-chip";
 import { CommentThread } from "@/components/community/comment-thread";
 import { PostActions } from "@/components/community/post-actions";
@@ -93,18 +93,7 @@ export default async function CommunityPostPage({
           recipeId={data.id as string}
           canReact={writer}
           imageUrl={imageUrl}
-        >
-          <div className="relative aspect-[4/5] w-full overflow-hidden bg-surface-2 sm:aspect-square">
-            {imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="" className="size-full object-cover" draggable={false} />
-            ) : (
-              <div className="grid size-full place-items-center text-brand/60">
-                <ChefHat size={56} aria-hidden />
-              </div>
-            )}
-          </div>
-        </PostDetailClient>
+        />
 
         <PostActions
           recipeId={data.id as string}

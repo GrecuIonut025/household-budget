@@ -1,4 +1,5 @@
 import "server-only";
+import { mediaProxyUrl } from "@/lib/media/url";
 import { createClient } from "@/lib/supabase/server";
 import { toMinor } from "@/lib/money";
 import type { PantryStock } from "@/lib/recipes/cost";
@@ -167,7 +168,12 @@ export async function getPantryStock(householdId: string, productIds: string[]):
   }));
 }
 
-/** Signed URLs for private recipe photos, keyed by storage path. Missing or unreadable files are skipped. */
+/**
+ * Browser URLs for private recipe photos, keyed by storage path.
+ * Returns same-origin `/api/media` proxies (not raw Supabase signed URLs) so phones
+ * on LAN HTTP can load images that would otherwise point at 127.0.0.1 / trip CSP.
+ * Missing or unreadable files are skipped (createSignedUrls doubles as an access check).
+ */
 export async function getImageUrls(paths: (string | null)[]): Promise<Record<string, string>> {
   const unique = [...new Set(paths.filter((p): p is string => !!p))];
   if (unique.length === 0) return {};
@@ -175,7 +181,11 @@ export async function getImageUrls(paths: (string | null)[]): Promise<Record<str
   const { data, error } = await supabase.storage.from(RECIPE_MEDIA_BUCKET).createSignedUrls(unique, SIGNED_URL_SECONDS);
   if (error || !data) return {};
   const urls: Record<string, string> = {};
-  for (const item of data) if (item.path && item.signedUrl) urls[item.path] = item.signedUrl;
+  for (const item of data) {
+    if (item.path && item.signedUrl) {
+      urls[item.path] = mediaProxyUrl(RECIPE_MEDIA_BUCKET, item.path);
+    }
+  }
   return urls;
 }
 
