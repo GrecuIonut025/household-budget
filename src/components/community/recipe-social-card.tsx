@@ -9,6 +9,7 @@ import {
   type InlineCommentsHandle,
 } from "@/components/community/inline-comments";
 import { DoubleTapLove, PostActions } from "@/components/community/post-actions";
+import { StorageImage } from "@/components/media/storage-image";
 import { formatRelativeTime } from "@/lib/format";
 import type { CommunityFeedItem } from "@/lib/data/community";
 import { useI18n } from "@/lib/i18n/provider";
@@ -56,12 +57,10 @@ export function RecipeSocialCard({
       <DoubleTapLove recipeId={item.id} canReact={canReact}>
         <div className="relative aspect-[4/5] w-full overflow-hidden bg-surface-2 sm:aspect-square">
           {item.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <StorageImage
               src={item.imageUrl}
-              alt=""
-              className="size-full object-cover"
-              draggable={false}
+              sizes="(max-width: 640px) 100vw, 470px"
+              className="size-full"
             />
           ) : (
             <div className="grid size-full place-items-center bg-gradient-to-br from-brand-soft to-surface-2 text-brand/45">

@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import clsx from "clsx";
 import { GradeBadge } from "@/components/community/grade-badge";
+import { StorageImage } from "@/components/media/storage-image";
 import type { CommunityAuthor } from "@/lib/data/community";
 import type { Translate } from "@/lib/i18n";
 
@@ -29,13 +32,16 @@ export function AuthorChip({
   const avatar = (
     <span
       className={clsx(
-        "grid shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-surface-2 font-semibold text-fg",
+        "relative grid shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-surface-2 font-semibold text-fg",
         avatarSize,
       )}
     >
       {author.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={author.avatarUrl} alt="" className="size-full object-cover" />
+        <StorageImage
+          src={author.avatarUrl}
+          sizes={size === "sm" ? "28px" : "36px"}
+          className="size-full"
+        />
       ) : (
         initials(author.displayName)
       )}

@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { addDays } from "@/lib/dates";
+import { mediaProxyUrl } from "@/lib/media/url";
 import { barcodeVariants, normalizeBarcode } from "@/lib/products/gtin";
 import { PRODUCT_MEDIA_BUCKET } from "@/lib/products/constants";
 import type { PriceRow, ProductRow, ProductWithBarcodes, PurchaseRow, RetailerRow } from "@/lib/products/types";
@@ -198,7 +199,7 @@ export async function findProductByBarcode(householdId: string, code: string): P
   return (data?.[0]?.product_id as string | undefined) ?? null;
 }
 
-/** Signed URLs (1 hour) for private product images, keyed by storage path. */
+/** Browser URLs for private product images (same-origin `/api/media` proxy). */
 export async function signProductImages(paths: (string | null)[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths.filter((p): p is string => !!p))];
   const result = new Map<string, string>();
@@ -206,7 +207,9 @@ export async function signProductImages(paths: (string | null)[]): Promise<Map<s
   const supabase = await createClient();
   const { data } = await supabase.storage.from(PRODUCT_MEDIA_BUCKET).createSignedUrls(unique, 3600);
   for (const item of data ?? []) {
-    if (item.path && item.signedUrl) result.set(item.path, item.signedUrl);
+    if (item.path && item.signedUrl) {
+      result.set(item.path, mediaProxyUrl(PRODUCT_MEDIA_BUCKET, item.path));
+    }
   }
   return result;
 }
