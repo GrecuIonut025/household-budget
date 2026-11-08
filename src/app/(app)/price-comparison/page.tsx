@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Scale } from "lucide-react";
 import { verifyPriceMatch } from "@/app/actions/prices";
-import { AdapterRefreshButtons } from "@/components/prices/refresh-forms";
 import { AlertCreateForm, AlertsList } from "@/components/prices/alert-form";
 import { GlovoBrasovSection } from "@/components/prices/glovo-brasov";
 import { ManualPriceButton } from "@/components/prices/manual-price-form";
@@ -136,13 +135,6 @@ export default async function PriceComparisonPage({ searchParams }: { searchPara
           {t("prices.filterFavorites")}
         </Link>
       </div>
-
-      {writer ? (
-        <Card className="mb-4">
-          <CardTitle>{t("prices.refreshMonitor")}</CardTitle>
-          <AdapterRefreshButtons householdId={household.id} />
-        </Card>
-      ) : null}
 
       {comparison.length === 0 ? (
         <EmptyState icon={<Scale size={28} />} title={t("prices.emptyTitle")} body={t("prices.emptyBody")} />

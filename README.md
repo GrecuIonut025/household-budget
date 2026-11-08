@@ -55,9 +55,9 @@ your production URL) to the allowed redirect URLs.
 npm run dev                    # http://localhost:3000
 ```
 
-`npm run predev` starts a **background** Glovo Brașov import from cached/fixture JSON (never a full crawl).
-Set `GLOVO_SYNC_ON_DEV=0` to skip it. See [docs/GLOVO.md](docs/GLOVO.md) for crawl session headers and
-`npm run glovo:sync`.
+Glovo Brașov: put session headers + `GLOVO_CRAWL=true` in `.env.local`, run `npm run glovo:sync`, then open
+**Comparare prețuri** (reads `glovo_data/`). See [docs/GLOVO.md](docs/GLOVO.md). Set `GLOVO_SYNC_ON_DEV=0`
+to skip the `predev` background sync.
 
 Sign up, create a household (name, number of people, currency, optional monthly limits) and start recording
 transactions. Invite others from **Household Settings → Invitations**; they open the link, sign up and accept.
@@ -72,13 +72,13 @@ transactions. Invite others from **Household Settings → Invitations**; they op
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` / `build` / `start` | Next.js (`predev` backgrounds Glovo fixture/cache import) |
+| `npm run dev` / `build` / `start` | Next.js (`predev` backgrounds Glovo sync; honors `GLOVO_CRAWL`) |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run lint` | ESLint |
 | `npm test` | Vitest unit tests (budget engine, money, dates, i18n, helpers) |
 | `npm run test:db` | pgTAP: applies all migrations to a scratch Postgres DB and runs RLS / trigger / engine tests |
 | `npm run check` | typecheck + lint + unit tests |
-| `npm run glovo:sync` / `glovo:import` / `glovo:crawl` | Brașov Glovo catalog → Supabase (see [docs/GLOVO.md](docs/GLOVO.md)) |
+| `npm run glovo:sync` / `glovo:crawl` | Brașov Glovo crawl → `glovo_data/` (optional DB import; see [docs/GLOVO.md](docs/GLOVO.md)) |
 
 ### Database tests
 
