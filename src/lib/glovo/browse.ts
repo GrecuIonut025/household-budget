@@ -92,7 +92,7 @@ export function listParentCategories(
   }
 
   return [...parents.values()]
-    .filter((n) => n.product_count > 0 || n.child_count > 0)
+    .filter((n) => n.product_count > 0)
     .sort((a, b) => a.title.localeCompare(b.title, "ro"));
 }
 

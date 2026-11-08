@@ -52,16 +52,20 @@ export async function getProducts(
   const q = opts.q?.trim() ?? "";
   const limit = Math.min(Math.max(opts.limit ?? 500, 1), 10_000);
 
+  const lidlId = filter === "any" ? null : await getLidlRetailerId();
+  // Over-fetch then drop Lidl rows so household products aren't crowded out of `limit`.
+  const fetchLimit = filter === "any" ? limit : Math.min(10_000, Math.max(limit * 40, 2_000));
+
   let query = supabase
     .from("products")
     .select(`${PRODUCT_COLUMNS}, product_barcodes(barcode)`)
     .eq("household_id", householdId)
     .order("is_favorite", { ascending: false })
     .order("name")
-    .limit(limit);
+    .limit(fetchLimit);
   if (filter !== "any") {
     query = query.eq("is_archived", filter === "archived");
-    // Hide Lidl XLSB catalogue imports from user-facing Produse lists.
+    // XLSB imports; preferred=Lidl covers fallbacks stored as data_source=manual.
     query = query.neq("data_source", "lidl_xlsb");
   }
   if (filter === "favorites") query = query.eq("is_favorite", true);
@@ -88,9 +92,21 @@ export async function getProducts(
   const { data, error } = await query;
   if (error) fail("products", error.message);
   const rows = (data ?? []).map(withBarcodes);
-  // Hide Lidl daily-file imports from the household catalogue UX.
   if (filter === "any") return rows;
-  return rows.filter((p) => p.data_source !== "lidl_xlsb");
+  return rows
+    .filter(
+      (p) =>
+        p.data_source !== "lidl_xlsb" &&
+        (!lidlId || p.preferred_retailer_id !== lidlId),
+    )
+    .slice(0, limit);
+}
+
+/** Cached Lidl retailer id for catalogue exclusion (null if seed missing). */
+async function getLidlRetailerId(): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("retailers").select("id").eq("slug", "lidl").maybeSingle();
+  return typeof data?.id === "string" ? data.id : null;
 }
 
 export async function getProduct(householdId: string, id: string): Promise<ProductWithBarcodes | null> {

@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, FolderOpen, Search, Store } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderOpen, Plus, Search, Store } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { GlovoOrderBar, useGlovoCart } from "@/components/prices/glovo-order-bar";
 import { Badge, Card, EmptyState, buttonClass } from "@/components/ui";
 import {
   browseLocalProducts,
@@ -40,6 +41,15 @@ type Labels = {
   next: string;
   items: string;
   noProductsInCategory: string;
+  addToCart: string;
+  prepareOrder: string;
+  itemsCount: string;
+  openInGlovo: string;
+  clearCart: string;
+  copyList: string;
+  copied: string;
+  handoffNote: string;
+  emptyCart: string;
 };
 
 type CatalogPayload = {
@@ -124,6 +134,7 @@ export function GlovoBrasovBrowse({ locale, labels }: { locale: string; labels: 
   const [draftQuery, setDraftQuery] = useState("");
   const [page, setPage] = useState(1);
   const [, startTransition] = useTransition();
+  const cart = useGlovoCart();
 
   useEffect(() => {
     const initial = readInitial();
@@ -408,9 +419,42 @@ export function GlovoBrasovBrowse({ locale, labels }: { locale: string; labels: 
           browse={browse}
           locale={locale}
           labels={labels}
+          onAdd={(product) => {
+            const storeSlug =
+              ordered.find((m) => m.retailer_key === product.retailer_key)?.store_slug ?? "";
+            cart.add({
+              id: product.id,
+              name: product.name,
+              priceDisplay:
+                product.price_display ??
+                formatMoney(toMinor(product.price ?? 0), product.currency || "RON", locale),
+              imageUrl: product.image_url,
+              retailer: product.retailer_key,
+              storeSlug,
+              glovoProductId: product.glovo_product_id,
+            });
+          }}
           onPage={(nextPage) => startTransition(() => setPage(nextPage))}
         />
       ) : null}
+
+      <div className={cart.totalQty > 0 ? "h-20" : undefined} aria-hidden />
+      <GlovoOrderBar
+        lines={cart.lines}
+        totalQty={cart.totalQty}
+        onClear={cart.clear}
+        onSetQty={cart.setQty}
+        labels={{
+          prepareOrder: labels.prepareOrder,
+          itemsCount: labels.itemsCount,
+          openInGlovo: labels.openInGlovo,
+          clearCart: labels.clearCart,
+          copyList: labels.copyList,
+          copied: labels.copied,
+          handoffNote: labels.handoffNote,
+          emptyCart: labels.emptyCart,
+        }}
+      />
     </section>
   );
 }
@@ -508,12 +552,14 @@ function ProductGrid({
   browse,
   locale,
   labels,
+  onAdd,
   onPage,
 }: {
   title: string;
   browse: GlovoBrowsePage;
   locale: string;
   labels: Labels;
+  onAdd: (product: GlovoProduct) => void;
   onPage: (page: number) => void;
 }) {
   return (
@@ -553,18 +599,29 @@ function ProductGrid({
                     </span>
                   ) : null}
                 </div>
-                <div className="space-y-1 p-2.5 sm:p-3">
+                <div className="space-y-2 p-2.5 sm:p-3">
                   <p className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-fg">
                     {product.name}
                   </p>
-                  <p className="tabular text-base font-bold text-fg">
-                    {product.price_display ??
-                      formatMoney(
-                        toMinor(product.price ?? 0),
-                        product.currency || "RON",
-                        locale,
-                      )}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="tabular text-base font-bold text-fg">
+                      {product.price_display ??
+                        formatMoney(
+                          toMinor(product.price ?? 0),
+                          product.currency || "RON",
+                          locale,
+                        )}
+                    </p>
+                    <button
+                      type="button"
+                      disabled={product.out_of_stock}
+                      onClick={() => onAdd(product)}
+                      className={`${buttonClass("primary")} !min-h-9 !rounded-full !px-2.5 touch-manipulation disabled:opacity-40`}
+                      aria-label={labels.addToCart}
+                    >
+                      <Plus size={16} aria-hidden />
+                    </button>
+                  </div>
                 </div>
               </article>
             );
