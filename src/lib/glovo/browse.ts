@@ -91,8 +91,9 @@ export function listParentCategories(
     node.child_count = childrenByParent.get(slug)?.size ?? 0;
   }
 
+  // Only categories that actually have priced products (no empty folder tiles).
   return [...parents.values()]
-    .filter((n) => n.product_count > 0 || n.child_count > 0)
+    .filter((n) => n.product_count > 0)
     .sort((a, b) => a.title.localeCompare(b.title, "ro"));
 }
 
