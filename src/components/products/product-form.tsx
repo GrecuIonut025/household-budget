@@ -4,6 +4,7 @@ import { ImagePlus, Loader2, Package, Search, Trash2 } from "lucide-react";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { lookupOpenFoodFacts, saveProduct } from "@/app/actions/products";
 import { useI18n } from "@/lib/i18n/provider";
+import { newUuid } from "@/lib/id";
 import { parseBarcodeList } from "@/lib/products/gtin";
 import { OFF_ATTRIBUTION, type OffProduct } from "@/lib/products/open-food-facts";
 import {
@@ -34,7 +35,7 @@ export interface ProductFormProps {
 function ProductFormBody({ householdId, retailers, product, imageUrl, initialBarcode, onDone }: ProductFormProps) {
   const { t } = useI18n();
   const [state, action] = useActionState(saveProduct, {});
-  const [newId] = useState(() => crypto.randomUUID());
+  const [newId] = useState(() => newUuid());
   const productId = product?.id ?? newId;
 
   const [name, setName] = useState(product?.name ?? "");

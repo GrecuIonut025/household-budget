@@ -1,5 +1,6 @@
 "use client";
 
+import { newUuid } from "@/lib/id";
 import { createClient } from "@/lib/supabase/browser";
 import { PRODUCT_MEDIA_BUCKET } from "@/lib/products/constants";
 
@@ -24,7 +25,7 @@ export async function resizeImage(file: File): Promise<Blob> {
 /** Uploads into the household-scoped folder; storage RLS requires the path to start with the household id. */
 export async function uploadProductImage(householdId: string, productId: string, file: File): Promise<string> {
   const blob = await resizeImage(file);
-  const path = `${householdId}/products/${productId}/${crypto.randomUUID()}.jpg`;
+  const path = `${householdId}/products/${productId}/${newUuid()}.jpg`;
   const { error } = await createClient().storage.from(PRODUCT_MEDIA_BUCKET).upload(path, blob, {
     contentType: "image/jpeg",
     cacheControl: "3600",

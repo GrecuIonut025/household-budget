@@ -5,6 +5,7 @@ import { RecipeEditor } from "@/components/recipes/recipe-editor";
 import { requireAppContext } from "@/lib/data/context";
 import { getProductOptions } from "@/lib/data/recipes";
 import { canWrite } from "@/lib/data/types";
+import { newUuid } from "@/lib/id";
 import { getTranslator } from "@/lib/i18n/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,7 +22,7 @@ export default async function NewRecipePage() {
   return (
     <>
       <PageHeader title={t("recipes.new")} />
-      <RecipeEditor householdId={ctx.active.household.id} recipeId={crypto.randomUUID()} recipe={null} imageUrl={null} products={products} />
+      <RecipeEditor householdId={ctx.active.household.id} recipeId={newUuid()} recipe={null} imageUrl={null} products={products} />
     </>
   );
 }
