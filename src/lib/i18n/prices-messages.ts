@@ -79,7 +79,7 @@ export const pricesEn = {
   "prices.glovo.clearCart": "Clear",
   "prices.glovo.copyList": "Copy list",
   "prices.glovo.copied": "Copied",
-  "prices.glovo.handoffNote": "Glovo has no public multi-add cart link. We open the Brașov store in the Glovo app and copy your list so you can add items there — no payment from this app.",
+  "prices.glovo.handoffNote": "Glovo only fills carts through a logged-in Glovo session (no public multi-add deep link). We open the Brașov store in the Glovo app with your first item searched and copy the full list — add there; this app never pays or submits.",
   "prices.glovo.emptyCart": "Your order list is empty.",
 };
 
@@ -163,6 +163,6 @@ export const pricesRo: Record<keyof typeof pricesEn, string> = {
   "prices.glovo.clearCart": "Golește",
   "prices.glovo.copyList": "Copiază lista",
   "prices.glovo.copied": "Copiat",
-  "prices.glovo.handoffNote": "Glovo nu oferă un link public pentru coș multi-produs. Deschidem magazinul din Brașov în aplicația Glovo și copiem lista ca să adaugi produsele acolo — fără plată din această aplicație.",
+  "prices.glovo.handoffNote": "Glovo umple coșul doar din sesiunea ta Glovo (nu există deep link public multi-produs). Deschidem magazinul din Brașov în aplicație cu primul produs căutat și copiem lista completă — adaugi acolo; această aplicație nu plătește și nu trimite comanda.",
   "prices.glovo.emptyCart": "Lista de comandă este goală.",
 };

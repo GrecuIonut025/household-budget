@@ -1,7 +1,8 @@
 "use client";
 
 import { ShoppingBag, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { buttonClass } from "@/components/ui";
 import {
   formatCartChecklist,
@@ -20,8 +21,37 @@ type OrderLabels = {
   emptyCart: string;
 };
 
+const CART_STORAGE_KEY = "hb.glovo.cart.v1";
+
+function readStoredCart(): CartLine[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = sessionStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as CartLine[];
+    return Array.isArray(parsed) ? parsed.filter((l) => l?.id && l.qty > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function useGlovoCart() {
   const [lines, setLines] = useState<CartLine[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setLines(readStoredCart());
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(lines));
+    } catch {
+      /* private mode */
+    }
+  }, [lines, hydrated]);
 
   const add = (line: Omit<CartLine, "qty">) => {
     setLines((prev) => {
@@ -47,8 +77,13 @@ export function useGlovoCart() {
   const clear = () => setLines([]);
 
   const totalQty = useMemo(() => lines.reduce((n, l) => n + l.qty, 0), [lines]);
+  const qtyById = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const line of lines) map[line.id] = line.qty;
+    return map;
+  }, [lines]);
 
-  return { lines, add, setQty, clear, totalQty };
+  return { lines, add, setQty, clear, totalQty, qtyById };
 }
 
 export function GlovoOrderBar({
@@ -66,8 +101,22 @@ export function GlovoOrderBar({
 }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [bump, setBump] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  if (totalQty === 0) return null;
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (totalQty <= 0) {
+      setOpen(false);
+      return;
+    }
+    setBump(true);
+    const t = window.setTimeout(() => setBump(false), 420);
+    return () => window.clearTimeout(t);
+  }, [totalQty]);
+
+  if (!mounted || totalQty === 0) return null;
 
   const storeSlug = lines[0]?.storeSlug;
   const checklist = formatCartChecklist(lines);
@@ -83,24 +132,32 @@ export function GlovoOrderBar({
     }
   };
 
-  const openGlovo = () => {
+  const openGlovo = async () => {
     if (!storeSlug || lines.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(checklist);
+    } catch {
+      /* ignore */
+    }
     openGlovoCartHandoff(lines);
   };
 
-  return (
+  const ui = (
     <>
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-3">
+      {/* Sit above the mobile BottomNav (z-40, ~3.5rem + safe area). */}
+      <div className="pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-3 pb-2 md:bottom-3 md:pb-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom,0px))]">
         <button
           type="button"
           onClick={() => void prepare()}
-          className="pointer-events-auto btn-gradient flex min-h-12 w-full max-w-lg items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg touch-manipulation"
+          className={`pointer-events-auto btn-gradient flex min-h-14 w-full max-w-lg items-center justify-between gap-3 rounded-2xl px-4 py-3 text-sm font-semibold shadow-[0_12px_32px_-8px_rgb(0_0_0/0.45)] touch-manipulation ${
+            bump ? "glovo-cart-bump" : ""
+          }`}
         >
           <span className="inline-flex items-center gap-2">
             <ShoppingBag size={18} aria-hidden />
             {labels.prepareOrder}
           </span>
-          <span className="rounded-full bg-white/20 px-2.5 py-0.5 tabular-nums">
+          <span className="rounded-full bg-white/25 px-2.5 py-0.5 tabular-nums">
             {labels.itemsCount.replace("{count}", String(totalQty))}
           </span>
         </button>
@@ -108,7 +165,7 @@ export function GlovoOrderBar({
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center"
+          className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-3 sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-label={labels.prepareOrder}
@@ -179,7 +236,7 @@ export function GlovoOrderBar({
               <button
                 type="button"
                 className={`${buttonClass("primary")} flex-1 touch-manipulation`}
-                onClick={openGlovo}
+                onClick={() => void openGlovo()}
                 disabled={!storeSlug || lines.length === 0}
               >
                 {labels.openInGlovo}
@@ -212,4 +269,6 @@ export function GlovoOrderBar({
       ) : null}
     </>
   );
+
+  return createPortal(ui, document.body);
 }

@@ -19,6 +19,12 @@ export type GlovoProduct = {
   retailer_key: GlovoRetailerKey;
   identity_key: string;
   glovo_product_id: string | null;
+  /** Numeric Glovo store id from crawl (basket API). */
+  glovo_store_id: string | null;
+  /** Numeric Glovo store address id from crawl (basket API). */
+  glovo_address_id: string | null;
+  store_product_id: string | null;
+  external_id: string | null;
   name: string;
   description: string | null;
   price: number | null;

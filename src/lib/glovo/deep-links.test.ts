@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildGlovoHandoffUrl,
   formatCartChecklist,
+  GLOVO_ANDROID_PACKAGE,
   glovoAndroidIntentUrl,
   glovoProductSearchUrl,
   glovoProductUrl,
@@ -26,14 +28,34 @@ describe("glovo deep links (Brașov RO)", () => {
     );
   });
 
-  it("builds Android intents that fall back to HTTPS", () => {
-    const intent = glovoAndroidIntentUrl("kaufland-brv-bo");
-    expect(intent).toContain("package=com.glovoapp.app");
+  it("builds Android intents with the real com.glovo package", () => {
+    const https = glovoStoreUrl("kaufland-brv-bo");
+    const intent = glovoAndroidIntentUrl(https);
+    expect(GLOVO_ANDROID_PACKAGE).toBe("com.glovo");
+    expect(intent).toContain(`package=${GLOVO_ANDROID_PACKAGE}`);
     expect(intent).toContain("ro/ro/brasov/stores/kaufland-brv-bo");
-    expect(intent).toContain(encodeURIComponent(glovoStoreUrl("kaufland-brv-bo")));
+    expect(intent).toContain(encodeURIComponent(https));
   });
 
-  it("formats a checklist with product links when available", () => {
+  it("hands off to store search for the first cart line", () => {
+    const url = buildGlovoHandoffUrl([
+      {
+        id: "1",
+        name: "Suc Coca Cola 2L",
+        priceDisplay: "14,79 RON",
+        imageUrl: null,
+        qty: 2,
+        retailer: "profi",
+        storeSlug: "profi-brv",
+        glovoProductId: "4611686018456822000",
+      },
+    ]);
+    expect(url).toBe(
+      "https://glovoapp.com/ro/ro/brasov/stores/profi-brv?search=Suc%20Coca%20Cola%202L",
+    );
+  });
+
+  it("formats a checklist with store + search links", () => {
     const text = formatCartChecklist([
       {
         id: "1",
@@ -57,7 +79,7 @@ describe("glovo deep links (Brașov RO)", () => {
       },
     ]);
     expect(text).toContain("2× Lapte (6,49 lei)");
-    expect(text).toContain("/stores/profi-brv/products/123");
+    expect(text).toContain("/stores/profi-brv?search=Lapte");
     expect(text).toContain("1× Pâine");
     expect(text).toContain("search=P%C3%A2ine");
   });
