@@ -6,38 +6,25 @@
  * Optional crawl: GLOVO_CRAWL=1 or --crawl (slow; needs valid session env).
  * Background: --background / GLOVO_SYNC_BACKGROUND=1 (used by npm run predev).
  *
+ * Loads `.env.local` / `.env` from the repo root (same idea as Next.js).
  * Never blocks forever on a full crawl during `next dev` startup.
  */
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, appendFileSync, readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { mkdirSync, appendFileSync } from "node:fs";
+import { resolve } from "node:path";
+import {
+  REPO_ROOT,
+  describeEnvStatus,
+  loadGlovoEnv,
+  supabaseServiceRoleFromEnv,
+  supabaseUrlFromEnv,
+} from "./load-env.mjs";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const ROOT = REPO_ROOT;
 const LOG_DIR = resolve(ROOT, "glovo_data");
 const LOG_FILE = resolve(LOG_DIR, "sync.log");
 
-function loadEnvFile(path) {
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq < 1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (!(key in process.env)) process.env[key] = value;
-  }
-}
-
-loadEnvFile(resolve(ROOT, ".env.local"));
-loadEnvFile(resolve(ROOT, ".env"));
+const envInfo = loadGlovoEnv(ROOT);
 
 function log(msg) {
   const line = `[glovo:sync ${new Date().toISOString()}] ${msg}`;
@@ -57,6 +44,7 @@ function parseArgs(argv) {
       argv.includes("--background") || process.env.GLOVO_SYNC_BACKGROUND === "1",
     skip: argv.includes("--skip") || process.env.GLOVO_SYNC_ON_DEV === "0",
     importOnly: argv.includes("--import-only"),
+    debugEnv: argv.includes("--debug-env"),
   };
 }
 
@@ -77,18 +65,37 @@ function run(command, args, opts = {}) {
   });
 }
 
-async function syncForeground(opts) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SECRET_KEY ||
-    process.env.SUPABASE_SERVICE_KEY;
-  if (!url || !key) {
+function logEnvDiagnostics() {
+  if (envInfo.loadedFiles.length === 0) {
+    log("No .env.local / .env found at repo root.");
+  } else {
     log(
-      "Skipping import — set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (see .env.example). Migration seed still populates sample rows after db reset.",
+      `Loaded env from: ${envInfo.loadedFiles.map((p) => p.replace(ROOT + "/", "")).join(", ")}`,
     );
+  }
+  for (const line of describeEnvStatus()) log(line);
+}
+
+async function syncForeground(opts) {
+  const url = supabaseUrlFromEnv();
+  const key = supabaseServiceRoleFromEnv();
+
+  if (!url || !key) {
+    logEnvDiagnostics();
+    if (!url) {
+      log(
+        "Skipping import — NEXT_PUBLIC_SUPABASE_URL is missing in the environment and in .env.local / .env.",
+      );
+    } else if (!key) {
+      log(
+        "Skipping import — SUPABASE_SERVICE_ROLE_KEY is missing. NEXT_PUBLIC_SUPABASE_ANON_KEY alone is not enough (importer writes via service_role). Add the service_role key from `supabase status` / the Supabase dashboard to .env.local.",
+      );
+    }
+    log("Migration seed still populates sample Glovo rows after db reset.");
     return;
   }
+
+  if (opts.debugEnv) logEnvDiagnostics();
 
   if (opts.crawl && !opts.importOnly) {
     log("Starting live crawl (slow). Prefer cached JSON for day-to-day.");
@@ -122,6 +129,7 @@ async function main() {
     const args = [resolve(ROOT, "scripts/glovo/sync.mjs")];
     if (opts.crawl) args.push("--crawl");
     if (opts.importOnly) args.push("--import-only");
+    if (opts.debugEnv) args.push("--debug-env");
     const child = spawn(process.execPath, args, {
       cwd: ROOT,
       detached: true,

@@ -33,6 +33,29 @@ Sample products are seeded so the UI works before a live crawl.
 
 Set `GLOVO_SYNC_ON_DEV=0` to skip the predev hook.
 
+## Env loading (`.env.local`)
+
+`glovo:sync`, `glovo:import`, and `glovo:crawl` read **repo-root** `.env.local` then `.env`
+automatically (same idea as Next.js). You do **not** need to `export` vars in the shell.
+
+Required for import:
+
+| Variable | Role |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase API URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Write** access for upserts (`service_role`) |
+
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` is enough for the Next.js app UI, but **not** for
+`npm run glovo:import` / `glovo:sync`. If sync says service role is missing, copy
+`service_role` from `npx supabase status` (local) or Project Settings → API (hosted)
+into `.env.local`.
+
+Debug without printing secrets:
+
+```bash
+npm run glovo:sync -- --debug-env
+```
+
 ## Session headers
 
 Glovo session IDs expire. If crawl requests fail (401/403/empty wall):

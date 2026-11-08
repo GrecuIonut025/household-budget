@@ -16,38 +16,24 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { existsSync, readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+import {
+  REPO_ROOT,
+  describeEnvStatus,
+  loadGlovoEnv,
+  supabaseServiceRoleFromEnv,
+  supabaseUrlFromEnv,
+} from "./load-env.mjs";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const ROOT = REPO_ROOT;
 const RETAILERS = new Set(["profi", "carrefour", "kaufland", "mega_image"]);
 const BATCH = 200;
+
+loadGlovoEnv(ROOT);
 
 function log(msg) {
   console.log(`[glovo:import] ${msg}`);
 }
-
-function loadEnvFile(path) {
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq < 1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (!(key in process.env)) process.env[key] = value;
-  }
-}
-
-loadEnvFile(resolve(ROOT, ".env.local"));
-loadEnvFile(resolve(ROOT, ".env"));
 
 function identityKey(product) {
   return String(
@@ -140,16 +126,20 @@ async function main() {
     process.exit(1);
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SECRET_KEY ||
-    process.env.SUPABASE_SERVICE_KEY;
+  const url = supabaseUrlFromEnv();
+  const key = supabaseServiceRoleFromEnv();
 
   if (!url || !key) {
-    console.error(
-      "[glovo:import] Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (see .env.example).",
-    );
+    for (const line of describeEnvStatus()) console.error(`[glovo:import] ${line}`);
+    if (!url) {
+      console.error(
+        "[glovo:import] NEXT_PUBLIC_SUPABASE_URL missing — add it to .env.local (see .env.example).",
+      );
+    } else {
+      console.error(
+        "[glovo:import] SUPABASE_SERVICE_ROLE_KEY missing — the anon/publishable key is not enough for upserts. Copy service_role from `supabase status` or the dashboard into .env.local.",
+      );
+    }
     process.exit(1);
   }
 
