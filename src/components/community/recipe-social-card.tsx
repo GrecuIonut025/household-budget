@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { AuthorChip } from "@/components/community/author-chip";
 import { GradeBadge } from "@/components/community/grade-badge";
+import { InlineComments } from "@/components/community/inline-comments";
 import { ReactionBar } from "@/components/community/reaction-bar";
 import { FavoriteButton } from "@/components/recipes/favorite-button";
 import type { CommunityFeedItem } from "@/lib/data/community";
@@ -12,22 +13,24 @@ export function RecipeSocialCard({
   householdId,
   canFavorite,
   canReact,
+  currentUserId,
   minutesLabel,
   servingsLabel,
   categoryLabel,
   t,
-  commentsHref,
+  inlineComments = true,
 }: {
   item: CommunityFeedItem;
   /** Active household — favorite only when the post belongs to it. */
   householdId: string;
   canFavorite: boolean;
   canReact: boolean;
+  currentUserId: string;
   minutesLabel: string | null;
   servingsLabel: string;
   categoryLabel: string | null;
   t: Translate;
-  commentsHref?: string;
+  inlineComments?: boolean;
 }) {
   const ownHousehold = item.householdId === householdId;
   return (
@@ -58,7 +61,7 @@ export function RecipeSocialCard({
           </div>
         ) : null}
       </div>
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
         {item.author ? (
           <AuthorChip author={item.author} t={t} size="sm" />
         ) : (
@@ -82,21 +85,22 @@ export function RecipeSocialCard({
           t={t}
         />
 
-        <Link
-          href={commentsHref ?? `/community/posts/${item.id}`}
-          className="inline-flex items-center gap-1.5 rounded-2xl border border-border-soft bg-surface-2/40 px-3 py-2 text-xs font-medium text-muted transition hover:text-fg"
-        >
-          <MessageCircle size={14} aria-hidden />
-          {t("community.showComments", { count: item.commentCount })}
-        </Link>
+        {inlineComments ? (
+          <InlineComments
+            recipeId={item.id}
+            commentCount={item.commentCount}
+            currentUserId={currentUserId}
+            canWrite={canReact}
+          />
+        ) : null}
 
-        <div className="mt-auto flex items-center gap-2 border-t border-border-soft pt-3">
+        <div className="mt-auto flex min-w-0 items-center gap-2 border-t border-border-soft pt-3">
           <Link
             href={`/community/posts/${item.id}`}
-            className="btn-gradient flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold"
+            className="btn-gradient flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold"
           >
-            {t("community.viewRecipe")}
-            <ArrowRight size={14} aria-hidden />
+            <span className="truncate">{t("community.viewRecipe")}</span>
+            <ArrowRight size={14} className="shrink-0" aria-hidden />
           </Link>
           {item.author ? <GradeBadge grade={item.author.grade} t={t} /> : null}
         </div>

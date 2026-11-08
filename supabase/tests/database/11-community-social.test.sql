@@ -1,5 +1,5 @@
 begin;
-select plan(15);
+select plan(19);
 
 select tests.seed_fixture();
 
@@ -7,21 +7,57 @@ select has_table('public', 'community_comments', 'community_comments exists');
 select has_table('public', 'community_reactions', 'community_reactions exists');
 select has_table('public', 'notifications', 'notifications exists');
 
--- Publish a recipe to the global feed
+-- Publish a recipe to the global feed (with a photo path for storage visibility)
 select tests.as_user('alice');
 select lives_ok(
   $$ update public.recipes
-     set community_published_at = now(), created_by = tests.id('alice')
+     set community_published_at = now(),
+         created_by = tests.id('alice'),
+         image_path = tests.id('hhA')::text || '/recipes/community.webp'
      where id = tests.id('A-recipe') $$,
   'owner can publish recipe to community'
 );
+select lives_ok(
+  $$ insert into storage.objects (bucket_id, name, owner)
+     values (
+       'household-media',
+       tests.id('hhA')::text || '/recipes/community.webp',
+       tests.id('alice')
+     ) $$,
+  'owner can upload community recipe photo'
+);
+select lives_ok(
+  $$ insert into storage.objects (bucket_id, name, owner)
+     values (
+       'household-media',
+       tests.id('hhA')::text || '/private/secret.webp',
+       tests.id('alice')
+     ) $$,
+  'owner can upload private household photo'
+);
 
--- Global visibility: dave (other household) can read the published recipe
+-- Global visibility: dave (other household) can read the published recipe + its image
 select tests.as_user('dave');
 select is(
   (select count(*)::int from public.recipes where id = tests.id('A-recipe') and community_published_at is not null),
   1,
   'authenticated users can read published community recipes'
+);
+select is(
+  (select count(*)::int from storage.objects
+    where name = tests.id('hhA')::text || '/recipes/community.webp'),
+  1,
+  'other household can read published community recipe media'
+);
+select is(
+  (select count(*)::int from storage.objects
+    where name = tests.id('hhA')::text || '/private/secret.webp'),
+  0,
+  'other household cannot read private household media'
+);
+select ok(
+  public.is_community_feed_media(tests.id('hhA')::text || '/recipes/community.webp'),
+  'is_community_feed_media recognizes published recipe photos'
 );
 
 -- Comments + reactions across households

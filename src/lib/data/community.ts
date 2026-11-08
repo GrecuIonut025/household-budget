@@ -488,6 +488,7 @@ export interface NotificationRow {
   kind: string;
   actorId: string | null;
   actorName: string | null;
+  actorAvatarUrl: string | null;
   recipeId: string | null;
   commentId: string | null;
   payload: Record<string, unknown>;
@@ -524,22 +525,30 @@ export async function getNotifications(
     .map((r) => r.actor_id as string | null)
     .filter((id): id is string => !!id);
   const profiles = await loadProfiles(actorIds);
+  const avatarUrls = await getImageUrls(
+    [...profiles.values()].map((p) => p.avatar_path),
+  );
 
   return {
     unreadCount: count ?? 0,
-    items: rows.map((r) => ({
-      id: r.id as string,
-      kind: r.kind as string,
-      actorId: (r.actor_id as string | null) ?? null,
-      actorName: r.actor_id
-        ? profiles.get(r.actor_id as string)?.display_name ?? null
-        : null,
-      recipeId: (r.recipe_id as string | null) ?? null,
-      commentId: (r.comment_id as string | null) ?? null,
-      payload: (r.payload as Record<string, unknown>) ?? {},
-      readAt: (r.read_at as string | null) ?? null,
-      createdAt: r.created_at as string,
-    })),
+    items: rows.map((r) => {
+      const actor = r.actor_id
+        ? profiles.get(r.actor_id as string)
+        : undefined;
+      const avatarPath = actor?.avatar_path ?? null;
+      return {
+        id: r.id as string,
+        kind: r.kind as string,
+        actorId: (r.actor_id as string | null) ?? null,
+        actorName: actor?.display_name ?? null,
+        actorAvatarUrl: avatarPath ? (avatarUrls[avatarPath] ?? null) : null,
+        recipeId: (r.recipe_id as string | null) ?? null,
+        commentId: (r.comment_id as string | null) ?? null,
+        payload: (r.payload as Record<string, unknown>) ?? {},
+        readAt: (r.read_at as string | null) ?? null,
+        createdAt: r.created_at as string,
+      };
+    }),
   };
 }
 

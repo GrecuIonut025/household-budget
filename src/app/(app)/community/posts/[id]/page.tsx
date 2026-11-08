@@ -140,7 +140,6 @@ export default async function CommunityPostPage({
           comments={social.comments}
           currentUserId={ctx.user.id}
           canWrite={writer}
-          t={t}
         />
       </Card>
     </article>

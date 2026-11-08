@@ -101,7 +101,6 @@ export default async function AppLayout({
             <NotificationsBell
               items={notifications.items}
               unreadCount={notifications.unreadCount}
-              t={t}
               compact
             />
             <Link
@@ -137,7 +136,6 @@ export default async function AppLayout({
           <NotificationsBell
             items={notifications.items}
             unreadCount={notifications.unreadCount}
-            t={t}
           />
           <ThemeToggle compact />
         </header>

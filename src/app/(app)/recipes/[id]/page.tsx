@@ -278,7 +278,6 @@ export default async function RecipePage({ params }: { params: Promise<Params> }
             comments={social.comments}
             currentUserId={ctx.user.id}
             canWrite={writer}
-            t={t}
           />
         </Card>
       ) : null}

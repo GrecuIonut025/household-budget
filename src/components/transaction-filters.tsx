@@ -33,9 +33,13 @@ export function TransactionFilters({
     router.push(`/transactions?${params.toString()}`);
   }
 
-  const select = "min-h-11 py-2 text-sm";
+  const select = "min-h-11 w-full max-w-full py-2 text-sm";
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label={t("tx.title")}>
+    <div
+      className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2 lg:grid-cols-4"
+      role="group"
+      aria-label={t("tx.title")}
+    >
       <select aria-label={t("tx.filterType")} value={values.type} onChange={(e) => update("type", e.target.value)} className={`${inputClass} ${select}`}>
         <option value="">{t("tx.filterType")}: {t("common.all")}</option>
         <option value="expense">{t("common.expense")}</option>
