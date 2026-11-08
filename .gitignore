@@ -42,3 +42,6 @@ next-env.d.ts
 
 !.env.example
 .env
+
+# Glovo crawler output (local cache; fixtures/glovo is committed)
+/glovo_data/

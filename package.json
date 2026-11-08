@@ -4,13 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "predev": "node scripts/glovo/sync.mjs --background",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "test:db": "bash scripts/db-test.sh",
-    "check": "npm run typecheck && npm run lint && npm test"
+    "check": "npm run typecheck && npm run lint && npm test",
+    "glovo:crawl": "bash scripts/glovo/crawl-brasov.sh",
+    "glovo:import": "node scripts/glovo/import.mjs",
+    "glovo:sync": "node scripts/glovo/sync.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

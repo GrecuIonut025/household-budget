@@ -52,6 +52,17 @@ export const pricesEn = {
   "prices.noQuotes": "No quotes for this product yet.",
   "prices.filterFavorites": "Favorites only",
   "prices.filterAll": "All products with prices",
+  "prices.glovo.title": "Brașov markets on Glovo",
+  "prices.glovo.subtitle": "Compare Profi, Carrefour, Kaufland and Mega Image from the Glovo Brașov catalog. Local sync only — prices come from the crawler import, never invented.",
+  "prices.glovo.searchPlaceholder": "Search products (e.g. milk, bread, banana)…",
+  "prices.glovo.search": "Search",
+  "prices.glovo.allMarkets": "All markets",
+  "prices.glovo.emptyTitle": "No Glovo products yet",
+  "prices.glovo.emptyBody": "Run npm run glovo:sync locally (or apply the Glovo migration seed). If the live crawl fails, refresh session headers in .env.local and retry.",
+  "prices.glovo.outOfStock": "Out of stock",
+  "prices.glovo.sourceNote": "Source: Glovo Brașov (brv). Does not replace Lidl / Monitorul Prețurilor adapters below.",
+  "prices.glovo.results": "{count} matches",
+  "prices.glovo.householdTitle": "Your household catalogue",
 };
 
 export const pricesRo: Record<keyof typeof pricesEn, string> = {
@@ -107,4 +118,15 @@ export const pricesRo: Record<keyof typeof pricesEn, string> = {
   "prices.noQuotes": "Nicio ofertă pentru acest produs încă.",
   "prices.filterFavorites": "Doar favorite",
   "prices.filterAll": "Toate produsele cu prețuri",
+  "prices.glovo.title": "Piețe din Brașov pe Glovo",
+  "prices.glovo.subtitle": "Compară Profi, Carrefour, Kaufland și Mega Image din catalogul Glovo Brașov. Sincronizare locală — prețurile vin din importul crawlerului, niciodată inventate.",
+  "prices.glovo.searchPlaceholder": "Caută produse (ex. lapte, pâine, banane)…",
+  "prices.glovo.search": "Caută",
+  "prices.glovo.allMarkets": "Toate piețele",
+  "prices.glovo.emptyTitle": "Niciun produs Glovo încă",
+  "prices.glovo.emptyBody": "Rulează local npm run glovo:sync (sau aplică seed-ul din migrare). Dacă crawl-ul eșuează, reîmprospătează headerele de sesiune în .env.local și reîncearcă.",
+  "prices.glovo.outOfStock": "Stoc epuizat",
+  "prices.glovo.sourceNote": "Sursă: Glovo Brașov (brv). Nu înlocuiește adaptoarele Lidl / Monitorul Prețurilor de mai jos.",
+  "prices.glovo.results": "{count} rezultate",
+  "prices.glovo.householdTitle": "Catalogul gospodăriei tale",
 };

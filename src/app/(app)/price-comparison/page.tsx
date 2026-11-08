@@ -4,14 +4,18 @@ import { Scale } from "lucide-react";
 import { verifyPriceMatch } from "@/app/actions/prices";
 import { AdapterRefreshButtons } from "@/components/prices/refresh-forms";
 import { AlertCreateForm, AlertsList } from "@/components/prices/alert-form";
+import { GlovoBrasovSection } from "@/components/prices/glovo-brasov";
 import { ManualPriceButton } from "@/components/prices/manual-price-form";
 import { PriceHistoryChart } from "@/components/prices/price-history-chart";
 import { Badge, Card, CardTitle, EmptyState, PageHeader, buttonClass } from "@/components/ui";
 import { requireAppContext } from "@/lib/data/context";
+import { listGlovoCatalogSample, listGlovoMarkets, searchGlovoProducts } from "@/lib/data/glovo";
 import { getProducts, getRetailers } from "@/lib/data/products";
 import { getRetailersWithMonitorIds, listPriceAlerts, listPriceDetails, listPriceHistory, toComparisonQuotes } from "@/lib/data/prices";
 import { canWrite } from "@/lib/data/types";
 import { formatDate, todayFor } from "@/lib/format";
+import { buildGlovoComparison, filterGlovoGroups } from "@/lib/glovo/compare";
+import type { GlovoRetailerKey } from "@/lib/glovo/types";
 import { getTranslator } from "@/lib/i18n/server";
 import { formatMoney, toMinor } from "@/lib/money";
 import { buildComparison } from "@/lib/prices/compare";
@@ -22,7 +26,14 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("nav.priceComparison") };
 }
 
-type Search = { fav?: string; product?: string };
+type Search = { fav?: string; product?: string; q?: string; market?: string };
+
+const GLOVO_MARKETS = new Set<GlovoRetailerKey>(["profi", "carrefour", "kaufland", "mega_image"]);
+
+function parseGlovoMarket(value: string | undefined): GlovoRetailerKey | null {
+  if (!value) return null;
+  return GLOVO_MARKETS.has(value as GlovoRetailerKey) ? (value as GlovoRetailerKey) : null;
+}
 
 export default async function PriceComparisonPage({ searchParams }: { searchParams: Promise<Search> }) {
   const params = await searchParams;
@@ -32,14 +43,27 @@ export default async function PriceComparisonPage({ searchParams }: { searchPara
   const writer = canWrite(role);
   const today = todayFor(household.timezone);
   const favoritesOnly = params.fav === "1";
+  const glovoQuery = params.q?.trim() ?? "";
+  const glovoMarket = parseGlovoMarket(params.market);
 
-  const [products, retailers, priceRows, alerts] = await Promise.all([
+  const [products, retailers, priceRows, alerts, glovoMarkets, glovoProducts] = await Promise.all([
     getProducts(household.id, { filter: favoritesOnly ? "favorites" : "all" }),
     getRetailersWithMonitorIds(),
     listPriceDetails(household.id),
     listPriceAlerts(household.id, ctx.user.id),
+    listGlovoMarkets().catch(() => []),
+    (glovoQuery
+      ? searchGlovoProducts({ query: glovoQuery, retailer: glovoMarket, limit: 240 })
+      : listGlovoCatalogSample(36)
+    ).catch(() => []),
   ]);
   const simpleRetailers = await getRetailers();
+
+  const glovoGroups = filterGlovoGroups(
+    buildGlovoComparison(glovoProducts, glovoMarkets),
+    glovoQuery,
+    glovoMarket,
+  ).slice(0, 48);
 
   const quotes = toComparisonQuotes(priceRows, retailers);
   const pricedProductIds = new Set(quotes.map((q) => q.productId));
@@ -73,6 +97,30 @@ export default async function PriceComparisonPage({ searchParams }: { searchPara
           ) : undefined
         }
       />
+
+      <GlovoBrasovSection
+        markets={glovoMarkets}
+        groups={glovoGroups}
+        query={glovoQuery}
+        retailer={glovoMarket}
+        locale={locale}
+        labels={{
+          title: t("prices.glovo.title"),
+          subtitle: t("prices.glovo.subtitle"),
+          searchPlaceholder: t("prices.glovo.searchPlaceholder"),
+          search: t("prices.glovo.search"),
+          allMarkets: t("prices.glovo.allMarkets"),
+          cheapest: t("prices.cheapest"),
+          spread: t("prices.spread"),
+          emptyTitle: t("prices.glovo.emptyTitle"),
+          emptyBody: t("prices.glovo.emptyBody"),
+          outOfStock: t("prices.glovo.outOfStock"),
+          sourceNote: t("prices.glovo.sourceNote"),
+          results: t("prices.glovo.results", { count: glovoGroups.length }),
+        }}
+      />
+
+      <h2 className="mb-3 text-base font-semibold text-fg">{t("prices.glovo.householdTitle")}</h2>
 
       <div className="mb-4 flex flex-wrap gap-2">
         <Link
