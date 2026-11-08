@@ -1,23 +1,34 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
-import { ChevronDown, ChevronUp, LoaderCircle, MessageCircle } from "lucide-react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useState,
+  useTransition,
+} from "react";
+import { LoaderCircle } from "lucide-react";
 import { CommentThread } from "@/components/community/comment-thread";
 import { buttonClass } from "@/components/ui";
 import type { CommunityComment, CommunityRecipeSocial } from "@/lib/data/community";
 import { useI18n } from "@/lib/i18n/provider";
 
-export function InlineComments({
-  recipeId,
-  commentCount,
-  currentUserId,
-  canWrite,
-}: {
-  recipeId: string;
-  commentCount: number;
-  currentUserId: string;
-  canWrite: boolean;
-}) {
+export type InlineCommentsHandle = {
+  open: () => void;
+};
+
+export const InlineComments = forwardRef<
+  InlineCommentsHandle,
+  {
+    recipeId: string;
+    commentCount: number;
+    currentUserId: string;
+    canWrite: boolean;
+  }
+>(function InlineComments(
+  { recipeId, commentCount, currentUserId, canWrite },
+  ref,
+) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState(commentCount);
@@ -42,39 +53,57 @@ export function InlineComments({
     });
   }, [recipeId, t]);
 
+  const openComments = useCallback(() => {
+    setOpen(true);
+    if (comments === null && !pending) load();
+  }, [comments, load, pending]);
+
+  useImperativeHandle(ref, () => ({ open: openComments }), [openComments]);
+
   function toggle() {
-    const next = !open;
-    setOpen(next);
-    if (next && comments === null && !pending) load();
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    openComments();
   }
 
   return (
     <div className="space-y-2">
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={open}
-        className="inline-flex w-full items-center justify-between gap-1.5 rounded-2xl border border-border-soft bg-surface-2/40 px-3 py-2 text-xs font-medium text-muted transition hover:text-fg"
-      >
-        <span className="inline-flex items-center gap-1.5">
-          <MessageCircle size={14} aria-hidden />
-          {open
-            ? t("community.hideComments")
-            : t("community.showComments", { count })}
-        </span>
-        {open ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
-      </button>
+      {!open ? (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={false}
+          className="w-full px-1 py-1 text-left text-sm text-muted transition hover:text-fg"
+        >
+          {count > 0
+            ? t("community.viewAllComments", { count })
+            : canWrite
+              ? t("community.comment.add")
+              : t("community.commentsEmptyTitle")}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded
+          className="w-full px-1 py-0.5 text-left text-xs font-medium text-muted hover:text-fg"
+        >
+          {t("community.hideComments")}
+        </button>
+      )}
 
       {open ? (
-        <div className="rounded-2xl border border-border-soft bg-surface/80 p-3 sm:p-3.5">
+        <div className="space-y-2 pb-1">
           {pending && comments === null ? (
-            <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted">
+            <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted">
               <LoaderCircle size={16} className="animate-spin" aria-hidden />
               {t("community.comments.loading")}
             </div>
           ) : null}
           {error ? (
-            <div className="flex flex-col items-center gap-2 py-4">
+            <div className="flex flex-col items-center gap-2 py-3">
               <p className="text-sm text-danger">{error}</p>
               <button type="button" className={buttonClass("secondary", "text-xs")} onClick={load}>
                 {t("community.feed.retry")}
@@ -95,4 +124,4 @@ export function InlineComments({
       ) : null}
     </div>
   );
-}
+});

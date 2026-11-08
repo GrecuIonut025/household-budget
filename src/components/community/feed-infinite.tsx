@@ -3,23 +3,25 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { LoaderCircle } from "lucide-react";
 import { RecipeSocialCard } from "@/components/community/recipe-social-card";
+import { StoriesStrip } from "@/components/community/stories-strip";
 import { EmptyState, buttonClass } from "@/components/ui";
-import type { CommunityFeedItem, CommunityFeedPage } from "@/lib/data/community";
-import type { MessageKey } from "@/lib/i18n";
+import type {
+  CommunityAuthor,
+  CommunityFeedItem,
+  CommunityFeedPage,
+} from "@/lib/data/community";
 import { useI18n } from "@/lib/i18n/provider";
 
-function labelsFor(
-  item: CommunityFeedItem,
-  t: (key: MessageKey, params?: Record<string, string | number>) => string,
-): { minutes: string | null; servings: string; category: string | null } {
-  const minutes = (item.prepMinutes ?? 0) + (item.cookMinutes ?? 0);
-  return {
-    minutes: minutes > 0 ? t("recipes.minutes", { count: minutes }) : null,
-    servings: t("recipes.servingsCount", { count: item.servings }),
-    category: item.category
-      ? t(`recipes.category.${item.category}` as MessageKey)
-      : null,
-  };
+function uniqueAuthors(items: CommunityFeedItem[]): CommunityAuthor[] {
+  const seen = new Set<string>();
+  const out: CommunityAuthor[] = [];
+  for (const item of items) {
+    if (!item.author || seen.has(item.author.id)) continue;
+    seen.add(item.author.id);
+    out.push(item.author);
+    if (out.length >= 12) break;
+  }
+  return out;
 }
 
 export function FeedInfinite({
@@ -30,6 +32,7 @@ export function FeedInfinite({
   currentUserId,
   emptyTitle,
   emptyBody,
+  emptyAction,
 }: {
   initial: CommunityFeedPage;
   householdId: string;
@@ -38,6 +41,7 @@ export function FeedInfinite({
   currentUserId: string;
   emptyTitle: string;
   emptyBody: string;
+  emptyAction?: React.ReactNode;
 }) {
   const { t } = useI18n();
   const [items, setItems] = useState(initial.items);
@@ -46,6 +50,7 @@ export function FeedInfinite({
   const [pending, startTransition] = useTransition();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
+  const authors = uniqueAuthors(items);
 
   const loadMore = useCallback(() => {
     if (!cursor || loadingRef.current) return;
@@ -90,36 +95,30 @@ export function FeedInfinite({
 
   if (items.length === 0) {
     return (
-      <div className="dashboard-card p-5">
-        <EmptyState title={emptyTitle} body={emptyBody} />
+      <div className="px-4 py-10">
+        <EmptyState title={emptyTitle} body={emptyBody} action={emptyAction} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {items.map((item) => {
-          const labels = labelsFor(item, t);
-          return (
-            <li key={item.id}>
-              <RecipeSocialCard
-                item={item}
-                householdId={householdId}
-                canFavorite={canFavorite}
-                canReact={canReact}
-                currentUserId={currentUserId}
-                minutesLabel={labels.minutes}
-                servingsLabel={labels.servings}
-                categoryLabel={labels.category}
-                t={t}
-              />
-            </li>
-          );
-        })}
+    <div>
+      <StoriesStrip authors={authors} t={t} />
+      <ul>
+        {items.map((item) => (
+          <li key={item.id}>
+            <RecipeSocialCard
+              item={item}
+              householdId={householdId}
+              canFavorite={canFavorite}
+              canReact={canReact}
+              currentUserId={currentUserId}
+            />
+          </li>
+        ))}
       </ul>
 
-      <div ref={sentinelRef} className="flex flex-col items-center gap-2 py-4">
+      <div ref={sentinelRef} className="flex flex-col items-center gap-2 py-6">
         {pending ? (
           <LoaderCircle className="size-5 animate-spin text-muted" aria-hidden />
         ) : null}

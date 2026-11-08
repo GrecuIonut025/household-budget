@@ -76,14 +76,14 @@ function CommentComposer({
       <label className="sr-only" htmlFor={fieldId}>
         {placeholder}
       </label>
-      <div className="rounded-2xl border border-border bg-surface focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20">
+      <div className="flex items-end gap-2 rounded-full border border-border bg-surface-2/60 px-3 py-1.5 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/15">
         <textarea
           ref={textareaRef}
           id={fieldId}
           name="body"
           required
           maxLength={2000}
-          rows={compact ? 1 : 2}
+          rows={1}
           placeholder={placeholder}
           onInput={resize}
           onKeyDown={(e) => {
@@ -92,37 +92,35 @@ function CommentComposer({
               formRef.current?.requestSubmit();
             }
           }}
-          className="block w-full resize-none bg-transparent px-3 py-2.5 text-sm text-fg outline-none placeholder:text-muted"
+          className="block max-h-28 min-h-[1.5rem] w-full resize-none bg-transparent py-1.5 text-sm text-fg outline-none placeholder:text-muted"
         />
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border-soft px-2 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
-          <p className="hidden text-[10px] text-muted sm:block">
-            {t("community.comment.composerHint")}
-          </p>
-          <div className="ml-auto flex items-center gap-1.5">
-            {onCancel ? (
-              <button
-                type="button"
-                onClick={onCancel}
-                className="rounded-xl px-2.5 py-1.5 text-xs font-medium text-muted hover:text-fg"
-              >
-                {t("community.comment.cancelReply")}
-              </button>
-            ) : null}
+        <div className="flex shrink-0 items-center gap-1 pb-0.5">
+          {onCancel ? (
             <button
-              type="submit"
-              disabled={pending}
-              className={buttonClass("primary", "gap-1.5 text-xs")}
+              type="button"
+              onClick={onCancel}
+              className="rounded-lg px-2 py-1 text-xs font-medium text-muted hover:text-fg"
             >
-              {pending ? (
-                <LoaderCircle size={14} className="animate-spin" aria-hidden />
-              ) : (
-                <Send size={14} aria-hidden />
-              )}
-              {submitLabel}
+              {t("community.comment.cancelReply")}
             </button>
-          </div>
+          ) : null}
+          <button
+            type="submit"
+            disabled={pending}
+            aria-label={submitLabel}
+            className="grid size-8 place-items-center rounded-full text-brand transition hover:bg-brand-soft disabled:opacity-50"
+          >
+            {pending ? (
+              <LoaderCircle size={16} className="animate-spin" aria-hidden />
+            ) : (
+              <Send size={16} aria-hidden />
+            )}
+          </button>
         </div>
       </div>
+      {!compact ? (
+        <p className="px-1 text-[10px] text-muted">{t("community.comment.composerHint")}</p>
+      ) : null}
     </form>
   );
 }
@@ -147,93 +145,88 @@ function CommentNode({
   const isOwn = comment.author.id === currentUserId;
 
   return (
-    <li className="space-y-3">
-      <div className="rounded-2xl border border-border-soft bg-surface-2/40 p-3 sm:p-3.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <AuthorChip author={comment.author} t={t} size="sm" />
-            <time
-              dateTime={comment.createdAt}
-              className="mt-1 block text-[10px] text-muted"
-            >
+    <li className="space-y-2">
+      <div className="flex gap-2.5 px-1">
+        <AuthorChip author={comment.author} t={t} size="sm" avatarOnly />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug text-fg">
+            <span className="font-semibold">{comment.author.displayName}</span>{" "}
+            <span className="whitespace-pre-wrap break-words">{comment.body}</span>
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+            <time dateTime={comment.createdAt}>
               {formatRelativeTime(comment.createdAt, locale)}
             </time>
-          </div>
-          {isOwn && canWrite ? (
-            <div className="flex shrink-0 gap-1">
-              <details className="relative">
-                <summary className="cursor-pointer list-none rounded-lg px-2 py-1 text-[11px] font-medium text-muted hover:text-fg">
-                  {t("community.comment.edit")}
-                </summary>
-                <form action={editComment} className="mt-2 space-y-2">
+            {canWrite && depth < 4 ? (
+              <button
+                type="button"
+                onClick={() => setReplyOpen((v) => !v)}
+                className="inline-flex items-center gap-1 font-semibold hover:text-fg"
+              >
+                <Reply size={11} aria-hidden />
+                {t("community.comment.reply")}
+              </button>
+            ) : null}
+            {isOwn && canWrite ? (
+              <>
+                <details className="relative">
+                  <summary className="cursor-pointer list-none font-medium hover:text-fg">
+                    {t("community.comment.edit")}
+                  </summary>
+                  <form action={editComment} className="mt-2 space-y-2">
+                    <input type="hidden" name="commentId" value={comment.id} />
+                    <input type="hidden" name="recipeId" value={recipeId} />
+                    <textarea
+                      name="body"
+                      required
+                      maxLength={2000}
+                      defaultValue={comment.body}
+                      rows={2}
+                      className={inputClass}
+                    />
+                    <button type="submit" className={buttonClass("secondary", "text-xs")}>
+                      {t("community.comment.save")}
+                    </button>
+                  </form>
+                </details>
+                <form action={deleteComment}>
                   <input type="hidden" name="commentId" value={comment.id} />
                   <input type="hidden" name="recipeId" value={recipeId} />
-                  <textarea
-                    name="body"
-                    required
-                    maxLength={2000}
-                    defaultValue={comment.body}
-                    rows={2}
-                    className={inputClass}
-                  />
-                  <button type="submit" className={buttonClass("secondary", "text-xs")}>
-                    {t("community.comment.save")}
+                  <button type="submit" className="font-medium text-danger hover:underline">
+                    {t("community.comment.delete")}
                   </button>
                 </form>
-              </details>
-              <form action={deleteComment}>
-                <input type="hidden" name="commentId" value={comment.id} />
-                <input type="hidden" name="recipeId" value={recipeId} />
-                <button
-                  type="submit"
-                  className="rounded-lg px-2 py-1 text-[11px] font-medium text-danger hover:bg-danger/10"
-                >
-                  {t("community.comment.delete")}
-                </button>
-              </form>
-            </div>
-          ) : null}
-        </div>
-        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-fg">
-          {comment.body}
-        </p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <ReactionBar
-            recipeId={recipeId}
-            commentId={comment.id}
-            summary={comment.reactions}
-            canReact={canWrite}
-            t={t}
-            compact
-          />
-          {canWrite && depth < 4 ? (
-            <button
-              type="button"
-              onClick={() => setReplyOpen((v) => !v)}
-              className="inline-flex items-center gap-1 self-start rounded-lg px-2 py-1 text-[11px] font-medium text-muted transition hover:bg-surface hover:text-fg"
-            >
-              <Reply size={12} aria-hidden />
-              {t("community.comment.reply")}
-            </button>
-          ) : null}
-        </div>
-        {replyOpen ? (
-          <div className="mt-3">
-            <CommentComposer
+              </>
+            ) : null}
+          </div>
+          <div className="mt-1.5">
+            <ReactionBar
               recipeId={recipeId}
-              parentId={comment.id}
-              placeholder={t("community.comment.replyPlaceholder")}
-              submitLabel={t("community.comment.postReply")}
-              autoFocus
-              onCancel={() => setReplyOpen(false)}
-              onPosted={onPosted}
+              commentId={comment.id}
+              summary={comment.reactions}
+              canReact={canWrite}
+              t={t}
               compact
             />
           </div>
-        ) : null}
+          {replyOpen ? (
+            <div className="mt-2">
+              <CommentComposer
+                recipeId={recipeId}
+                parentId={comment.id}
+                placeholder={t("community.comment.replyPlaceholder")}
+                submitLabel={t("community.comment.postReply")}
+                autoFocus
+                onCancel={() => setReplyOpen(false)}
+                onPosted={onPosted}
+                compact
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
       {comment.replies.length > 0 ? (
-        <ul className="space-y-3 border-l border-border-soft pl-3 sm:pl-4">
+        <ul className="ml-8 space-y-2 border-l border-border-soft pl-3">
           {comment.replies.map((reply) => (
             <CommentNode
               key={reply.id}
@@ -286,12 +279,16 @@ export function CommentThread({
       ) : null}
 
       {comments.length === 0 ? (
-        <EmptyState
-          compact
-          icon={<MessageCircle size={20} aria-hidden />}
-          title={t("community.commentsEmptyTitle")}
-          body={t("community.commentsEmptyBody")}
-        />
+        compact ? (
+          <p className="px-1 py-2 text-sm text-muted">{t("community.commentsEmptyBody")}</p>
+        ) : (
+          <EmptyState
+            compact
+            icon={<MessageCircle size={20} aria-hidden />}
+            title={t("community.commentsEmptyTitle")}
+            body={t("community.commentsEmptyBody")}
+          />
+        )
       ) : (
         <ul className="space-y-3">
           {comments.map((c) => (
