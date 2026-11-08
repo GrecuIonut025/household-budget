@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  Bell,
   Search,
   Target,
   Users,
@@ -291,17 +290,7 @@ export default async function DashboardPage() {
           <span className="hidden text-xs font-medium capitalize text-muted sm:block">
             {formatMonthLabel(month, locale)}
           </span>
-          <details className="relative">
-            <summary
-              className="relative flex size-10 list-none items-center justify-center rounded-2xl border border-border bg-surface text-muted transition hover:border-muted hover:text-fg marker:content-none [&::-webkit-details-marker]:hidden"
-              aria-label={t("dashboard.notifications")}
-            >
-              <Bell size={18} aria-hidden />
-            </summary>
-            <div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl border border-border bg-surface p-3 text-sm text-muted shadow-[var(--shadow-card)]">
-              {t("dashboard.notificationsEmpty")}
-            </div>
-          </details>
+          {/* Notifications live in the app shell (sidebar + mobile header). */}
           <div className="flex items-center gap-3 rounded-2xl border border-transparent py-1 pl-1 pr-2 transition hover:border-border hover:bg-surface">
             <span
               className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-fg ring-2 ring-purple-500/40"
