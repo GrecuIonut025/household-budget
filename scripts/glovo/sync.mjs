@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Local Glovo Brașov sync orchestration.
+ * Local Glovo Brașov sync orchestration (simple path).
  *
- * Default: import cached/fixture JSON into Supabase (fast).
- * Optional crawl: GLOVO_CRAWL=1 or --crawl (slow; needs valid session env).
- * Background: --background / GLOVO_SYNC_BACKGROUND=1 (used by npm run predev).
+ * 1. If GLOVO_CRAWL=true|1|yes (or --crawl): run the live crawler → glovo_data/
+ * 2. If SUPABASE_SERVICE_ROLE_KEY is set: optional import into Supabase
+ * 3. Otherwise: stop after crawl — Comparare prețuri reads glovo_data/ directly
  *
  * Loads `.env.local` / `.env` from the repo root (same idea as Next.js).
- * Never blocks forever on a full crawl during `next dev` startup.
+ * Background: --background / GLOVO_SYNC_BACKGROUND=1 (used by npm run predev).
  */
 import { spawn } from "node:child_process";
-import { mkdirSync, appendFileSync } from "node:fs";
+import { existsSync, mkdirSync, appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   REPO_ROOT,
@@ -23,6 +23,8 @@ import {
 const ROOT = REPO_ROOT;
 const LOG_DIR = resolve(ROOT, "glovo_data");
 const LOG_FILE = resolve(LOG_DIR, "sync.log");
+const LOCAL_CATALOG = resolve(ROOT, "glovo_data", "all_products.json");
+const FIXTURE_CATALOG = resolve(ROOT, "fixtures", "glovo", "all_products.json");
 
 const envInfo = loadGlovoEnv(ROOT);
 
@@ -37,9 +39,16 @@ function log(msg) {
   }
 }
 
+/** true|1|yes (case-insensitive), or --crawl flag. */
+function crawlEnabled(argv) {
+  if (argv.includes("--crawl")) return true;
+  const raw = (process.env.GLOVO_CRAWL || "").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
 function parseArgs(argv) {
   return {
-    crawl: argv.includes("--crawl") || process.env.GLOVO_CRAWL === "1",
+    crawl: crawlEnabled(argv),
     background:
       argv.includes("--background") || process.env.GLOVO_SYNC_BACKGROUND === "1",
     skip: argv.includes("--skip") || process.env.GLOVO_SYNC_ON_DEV === "0",
@@ -74,46 +83,66 @@ function logEnvDiagnostics() {
     );
   }
   for (const line of describeEnvStatus()) log(line);
+  const crawlFlag = (process.env.GLOVO_CRAWL || "").trim() || "(unset)";
+  log(`GLOVO_CRAWL: ${crawlFlag}`);
+}
+
+function localCatalogHint() {
+  if (existsSync(LOCAL_CATALOG)) {
+    return `Comparare prețuri reads ${LOCAL_CATALOG.replace(ROOT + "/", "")} (no service role needed).`;
+  }
+  if (existsSync(FIXTURE_CATALOG)) {
+    return `Comparare prețuri can use fixtures/glovo/all_products.json until you crawl.`;
+  }
+  return "After a successful crawl, open Comparare prețuri — it reads glovo_data/all_products.json.";
 }
 
 async function syncForeground(opts) {
+  if (opts.debugEnv) logEnvDiagnostics();
+
+  // --- 1) Crawl when requested ---
+  if (opts.crawl && !opts.importOnly) {
+    log("Starting live crawl (slow). Needs fresh Glovo session headers in .env.local.");
+    try {
+      await run("bash", [resolve(ROOT, "scripts/glovo/crawl-brasov.sh")]);
+      log(`Crawl finished. ${localCatalogHint()}`);
+    } catch (err) {
+      log(`Crawl failed (${err.message}).`);
+      if (existsSync(LOCAL_CATALOG) || existsSync(FIXTURE_CATALOG)) {
+        log(`Keeping existing catalog. ${localCatalogHint()}`);
+      } else {
+        log("No local catalog yet. Fix session headers and re-run with GLOVO_CRAWL=true.");
+      }
+    }
+  } else if (!opts.importOnly) {
+    log(`Skipping live crawl (set GLOVO_CRAWL=true in .env.local to enable). ${localCatalogHint()}`);
+  }
+
+  // --- 2) Optional Supabase import (service role) ---
   const url = supabaseUrlFromEnv();
   const key = supabaseServiceRoleFromEnv();
 
   if (!url || !key) {
-    logEnvDiagnostics();
+    if (!opts.debugEnv) logEnvDiagnostics();
     if (!url) {
+      log("Skipping DB import — NEXT_PUBLIC_SUPABASE_URL missing (optional for local JSON UI).");
+    } else {
       log(
-        "Skipping import — NEXT_PUBLIC_SUPABASE_URL is missing in the environment and in .env.local / .env.",
-      );
-    } else if (!key) {
-      log(
-        "Skipping import — SUPABASE_SERVICE_ROLE_KEY is missing. NEXT_PUBLIC_SUPABASE_ANON_KEY alone is not enough (importer writes via service_role). Add the service_role key from `supabase status` / the Supabase dashboard to .env.local.",
+        "Skipping DB import — SUPABASE_SERVICE_ROLE_KEY missing (optional). Comparare prețuri still reads glovo_data/.",
       );
     }
-    log("Migration seed still populates sample Glovo rows after db reset.");
+    log(localCatalogHint());
     return;
-  }
-
-  if (opts.debugEnv) logEnvDiagnostics();
-
-  if (opts.crawl && !opts.importOnly) {
-    log("Starting live crawl (slow). Prefer cached JSON for day-to-day.");
-    try {
-      await run("bash", [resolve(ROOT, "scripts/glovo/crawl-brasov.sh")]);
-    } catch (err) {
-      log(`Crawl failed (${err.message}). Falling back to cached/fixture import.`);
-    }
-  } else {
-    log("Skipping live crawl — importing from glovo_data/ or fixtures/glovo/");
   }
 
   try {
     await run(process.execPath, [resolve(ROOT, "scripts/glovo/import.mjs")]);
-    log("Sync finished.");
+    log("DB import finished.");
   } catch (err) {
-    log(`Import failed (${err.message}). UI can still use migration seed / prior rows.`);
+    log(`Import failed (${err.message}). UI can still use glovo_data/ / fixtures.`);
   }
+
+  log(`Sync finished. ${localCatalogHint()}`);
 }
 
 async function main() {

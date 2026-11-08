@@ -1,5 +1,10 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import {
+  filterLocalProducts,
+  loadLocalGlovoCatalog,
+  staticGlovoMarkets,
+} from "@/lib/glovo/local-catalog";
 import type { GlovoMarket, GlovoProduct, GlovoRetailerKey } from "@/lib/glovo/types";
 
 const MARKET_COLS =
@@ -7,15 +12,33 @@ const MARKET_COLS =
 const PRODUCT_COLS =
   "id, market_id, retailer_key, identity_key, glovo_product_id, name, description, price, currency, price_display, image_url, image_id, category, eans, out_of_stock, observed_at";
 
+/**
+ * Prefer local crawl / fixture JSON (`glovo_data/all_products.json`) so Comparare
+ * prețuri works without SUPABASE_SERVICE_ROLE_KEY. Fall back to Supabase when
+ * no local catalog is present.
+ */
 export async function listGlovoMarkets(): Promise<GlovoMarket[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("glovo_markets")
-    .select(MARKET_COLS)
-    .eq("is_active", true)
-    .order("name");
-  if (error) throw error;
-  return (data ?? []) as GlovoMarket[];
+  const local = loadLocalGlovoCatalog();
+  if (local && local.products.length > 0) {
+    return local.markets.map((m) => ({
+      ...m,
+      last_synced_at: new Date().toISOString(),
+    }));
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("glovo_markets")
+      .select(MARKET_COLS)
+      .eq("is_active", true)
+      .order("name");
+    if (error) throw error;
+    if (data && data.length > 0) return data as GlovoMarket[];
+  } catch {
+    // Fall through to static Brașov market list.
+  }
+  return staticGlovoMarkets();
 }
 
 export async function searchGlovoProducts(opts: {
@@ -23,6 +46,11 @@ export async function searchGlovoProducts(opts: {
   retailer?: GlovoRetailerKey | null;
   limit?: number;
 }): Promise<GlovoProduct[]> {
+  const local = loadLocalGlovoCatalog();
+  if (local && local.products.length > 0) {
+    return filterLocalProducts(local.products, opts);
+  }
+
   const supabase = await createClient();
   const limit = Math.min(Math.max(opts.limit ?? 120, 1), 400);
   let q = supabase
@@ -57,6 +85,19 @@ export async function searchGlovoProducts(opts: {
 
 /** When the search query is empty, pull a balanced sample across markets for the landing view. */
 export async function listGlovoCatalogSample(limitPerMarket = 40): Promise<GlovoProduct[]> {
+  const local = loadLocalGlovoCatalog();
+  if (local && local.products.length > 0) {
+    const byRetailer = new Map<GlovoRetailerKey, GlovoProduct[]>();
+    for (const p of filterLocalProducts(local.products, { limit: 800 })) {
+      const bucket = byRetailer.get(p.retailer_key) ?? [];
+      if (bucket.length < limitPerMarket) {
+        bucket.push(p);
+        byRetailer.set(p.retailer_key, bucket);
+      }
+    }
+    return [...byRetailer.values()].flat();
+  }
+
   const markets = await listGlovoMarkets();
   const chunks = await Promise.all(
     markets.map(async (market) => {
