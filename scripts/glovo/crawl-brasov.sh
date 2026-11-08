@@ -42,19 +42,19 @@ echo "[PYTHON] $("$PYTHON" --version)"
 
 # ============================================================
 # SESSION HEADERS
-# Use a valid, authorized browser session. Override via env — do not
-# commit fresh secrets; placeholders below are only for local smoke.
+# Defaults match the user's tested crawler. Override via .env.local
+# when sessions expire (DevTools → api.glovoapp.com request headers).
 # ============================================================
 
 USER_AGENT="${GLOVO_USER_AGENT:-Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1}"
 
-DEVICE_URN="${GLOVO_DEVICE_URN:-glv:device:00000000-0000-0000-0000-000000000000}"
-DYNAMIC_SESSION_ID="${GLOVO_DYNAMIC_SESSION_ID:-00000000-0000-0000-0000-000000000000}"
-PERSEUS_CLIENT_ID="${GLOVO_PERSEUS_CLIENT_ID:-00000000-0000-0000-0000-000000000000}"
-PERSEUS_SESSION_TIMESTAMP="${GLOVO_PERSEUS_SESSION_TIMESTAMP:-0}"
-DELIVERY_LOCATION_TIMESTAMP="${GLOVO_DELIVERY_LOCATION_TIMESTAMP:-0}"
+DEVICE_URN="${GLOVO_DEVICE_URN:-glv:device:532b00e8-cabe-4f75-9e60-a3a308d051b7}"
+DYNAMIC_SESSION_ID="${GLOVO_DYNAMIC_SESSION_ID:-27033905-1c94-43f3-9fe1-94f9d7aeea1d}"
+PERSEUS_CLIENT_ID="${GLOVO_PERSEUS_CLIENT_ID:-6381b7ca-82c2-4a38-b6b4-cd0ebc007dd8}"
+PERSEUS_SESSION_TIMESTAMP="${GLOVO_PERSEUS_SESSION_TIMESTAMP:-1794101426023}"
+DELIVERY_LOCATION_TIMESTAMP="${GLOVO_DELIVERY_LOCATION_TIMESTAMP:-1794101431447}"
 
-# Optional cookie (COOKIE or GLOVO_COOKIE).
+# Optional cookie (COOKIE or GLOVO_COOKIE) — empty in the original script.
 COOKIE="${GLOVO_COOKIE:-${COOKIE:-}}"
 
 export GLOVO_BASE_URL="$BASE_URL"

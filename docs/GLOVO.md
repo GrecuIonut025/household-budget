@@ -2,16 +2,15 @@
 
 ## Happy path (what you usually want)
 
-1. Put Glovo session headers + `GLOVO_CRAWL=true` in **repo-root** `.env.local`:
+1. Copy into **repo-root** `.env.local` (same defaults are baked into the crawler if unset):
 
 ```
-GLOVO_DEVICE_URN=glv:device:...
-GLOVO_DYNAMIC_SESSION_ID=...
-GLOVO_PERSEUS_CLIENT_ID=...
-GLOVO_PERSEUS_SESSION_TIMESTAMP=...
-GLOVO_DELIVERY_LOCATION_TIMESTAMP=...
-COOKIE=...
 GLOVO_CRAWL=true
+GLOVO_DEVICE_URN=glv:device:532b00e8-cabe-4f75-9e60-a3a308d051b7
+GLOVO_DYNAMIC_SESSION_ID=27033905-1c94-43f3-9fe1-94f9d7aeea1d
+GLOVO_PERSEUS_CLIENT_ID=6381b7ca-82c2-4a38-b6b4-cd0ebc007dd8
+GLOVO_PERSEUS_SESSION_TIMESTAMP=1794101426023
+GLOVO_DELIVERY_LOCATION_TIMESTAMP=1794101431447
 ```
 
 2. Run:
