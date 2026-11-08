@@ -133,11 +133,13 @@ export default async function AppLayout({
             </div>
           </div>
           <p className="min-w-0 flex-1 truncate text-sm font-bold">{t("app.name")}</p>
-          <NotificationsBell
-            items={notifications.items}
-            unreadCount={notifications.unreadCount}
-          />
-          <ThemeToggle compact />
+          <div className="relative z-10 flex shrink-0 items-center gap-1 pointer-events-auto">
+            <NotificationsBell
+              items={notifications.items}
+              unreadCount={notifications.unreadCount}
+            />
+            <ThemeToggle compact />
+          </div>
         </header>
         <main className="mx-auto w-full max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 md:px-7 md:pb-10 md:pt-7">
           {children}

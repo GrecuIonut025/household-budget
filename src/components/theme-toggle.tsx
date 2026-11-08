@@ -51,7 +51,7 @@ export function ThemeToggle({
           type="button"
           onClick={() => setPreference(preference === "light" ? "system" : "light")}
           className={clsx(
-            "flex items-center justify-center rounded-full transition-colors",
+            "flex touch-manipulation items-center justify-center rounded-full transition-colors",
             variant === "pill" ? "h-9 flex-1" : "size-8",
             lightActive
               ? "bg-brand/40 text-brand-accent"
@@ -67,7 +67,7 @@ export function ThemeToggle({
           type="button"
           onClick={() => setPreference(preference === "dark" ? "system" : "dark")}
           className={clsx(
-            "flex items-center justify-center rounded-full transition-colors",
+            "flex touch-manipulation items-center justify-center rounded-full transition-colors",
             variant === "pill" ? "h-9 flex-1" : "size-8",
             darkActive
               ? "bg-brand/40 text-brand-accent"
@@ -89,8 +89,15 @@ export function ThemeToggle({
     return (
       <button
         type="button"
-        onClick={cycle}
-        className={buttonClass("ghost", "size-10 shrink-0 rounded-2xl px-0")}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          cycle();
+        }}
+        className={buttonClass(
+          "ghost",
+          "relative z-10 size-10 shrink-0 touch-manipulation rounded-2xl px-0",
+        )}
         aria-label={t("theme.toggle", { mode: t(current.labelKey) })}
         title={t(current.labelKey)}
       >
