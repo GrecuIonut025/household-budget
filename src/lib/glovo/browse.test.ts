@@ -78,4 +78,23 @@ describe("glovo browse helpers", () => {
     expect(page.total).toBe(1);
     expect(page.items[0]?.name).toContain("Zuzu");
   });
+
+  it("hides parents and subcategories with zero products (HGI-34)", () => {
+    const emptyCats = [
+      ...categories,
+      {
+        retailer: "profi" as const,
+        title: "Empty Shelf",
+        slug: "empty-c.9",
+        path: "/x?link=ghost-sc.9/empty-c.9",
+        parent_slug: "ghost-sc.9",
+        parent_title: "Ghost",
+      },
+    ];
+    const parents = listParentCategories("profi", products, emptyCats);
+    expect(parents.every((p) => p.product_count > 0)).toBe(true);
+    expect(parents.map((p) => p.slug)).not.toContain("ghost-sc.9");
+    const emptySubs = listSubcategories("profi", "ghost-sc.9", products, emptyCats);
+    expect(emptySubs).toEqual([]);
+  });
 });

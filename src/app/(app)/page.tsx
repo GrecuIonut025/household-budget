@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  Search,
   Target,
   Users,
   Wallet,
@@ -13,6 +12,7 @@ import { QuickLists } from "@/components/dashboard/quick-lists";
 import { RecentPurchases } from "@/components/dashboard/recent-purchases";
 import { RecipePromo } from "@/components/dashboard/recipe-promo";
 import { SummaryCard } from "@/components/dashboard/summary-card";
+import { GlobalSearch } from "@/components/global-search";
 import { AddTransactionButton } from "@/components/transaction-form";
 import {
   Badge,
@@ -274,18 +274,7 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div className="relative w-full max-w-xl">
-          <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-muted">
-            <Search size={16} aria-hidden />
-          </span>
-          <input
-            readOnly
-            tabIndex={-1}
-            aria-label={t("nav.searchPlaceholder")}
-            placeholder={t("nav.searchPlaceholder")}
-            className="w-full rounded-2xl border border-border bg-surface py-2.5 pl-11 pr-4 text-sm text-fg shadow-inner placeholder:text-muted/80 focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
-          />
-        </div>
+        <GlobalSearch placeholder={t("nav.searchPlaceholder")} />
         <div className="flex items-center justify-end gap-4 self-end md:self-auto">
           <span className="hidden text-xs font-medium capitalize text-muted sm:block">
             {formatMonthLabel(month, locale)}

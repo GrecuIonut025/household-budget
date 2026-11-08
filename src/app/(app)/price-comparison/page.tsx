@@ -38,6 +38,15 @@ export default async function PriceComparisonPage() {
           next: t("prices.glovo.next"),
           items: t("prices.glovo.results"),
           noProductsInCategory: t("prices.glovo.noProductsInCategory"),
+          addToCart: t("prices.glovo.addToCart"),
+          prepareOrder: t("prices.glovo.prepareOrder"),
+          itemsCount: t("prices.glovo.itemsCount"),
+          openInGlovo: t("prices.glovo.openInGlovo"),
+          clearCart: t("prices.glovo.clearCart"),
+          copyList: t("prices.glovo.copyList"),
+          copied: t("prices.glovo.copied"),
+          handoffNote: t("prices.glovo.handoffNote"),
+          emptyCart: t("prices.glovo.emptyCart"),
         }}
       />
     </>

@@ -15,7 +15,8 @@
     "glovo:crawl": "node scripts/glovo/crawl.mjs",
     "glovo:import": "node scripts/glovo/import.mjs",
     "glovo:sync": "node scripts/glovo/sync.mjs",
-    "glovo:env-test": "node scripts/glovo/load-env.test.mjs"
+    "glovo:env-test": "node scripts/glovo/load-env.test.mjs",
+    "purge:lidl": "node scripts/purge-lidl-products.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
