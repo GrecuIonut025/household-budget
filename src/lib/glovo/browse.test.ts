@@ -14,7 +14,7 @@ const products: GlovoProduct[] = [
     price: 7.5,
     currency: "RON",
     price_display: "7,50 lei",
-    image_url: null,
+    image_url: "https://example.com/lapte.jpg",
     image_id: null,
     category: "Lapte",
     category_slug: "lapte-c.1",
@@ -61,9 +61,14 @@ const categories = [
 describe("glovo browse helpers", () => {
   it("lists parents and filters products client-side", () => {
     const parents = listParentCategories("profi", products, categories);
-    expect(parents.some((p) => p.slug === "lactate-sc.1")).toBe(true);
+    const parent = parents.find((p) => p.slug === "lactate-sc.1");
+    expect(parent).toBeTruthy();
+    expect(parent?.image_url).toBe("https://example.com/lapte.jpg");
     const subs = listSubcategories("profi", "lactate-sc.1", products, categories);
     expect(subs.map((s) => s.slug)).toContain("lapte-c.1");
+    expect(subs.find((s) => s.slug === "lapte-c.1")?.image_url).toBe(
+      "https://example.com/lapte.jpg",
+    );
     const page = browseLocalProducts(products, {
       retailer: "profi",
       query: "zuzu",

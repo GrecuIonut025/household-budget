@@ -306,29 +306,29 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <section className="relative overflow-hidden rounded-3xl border border-[#1f2642] bg-gradient-to-r from-[#111528] via-[#151a33] to-[#0e1122] p-6 lg:p-9">
+      <section className="relative min-h-[11rem] overflow-hidden rounded-3xl border border-[#1f2642] bg-gradient-to-r from-[#111528] via-[#151a33] to-[#0e1122] p-6 sm:min-h-[13rem] lg:min-h-[15rem] lg:p-9">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/images/dashboard-hero.jpg"
           alt=""
-          className="pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover object-right-top opacity-40 mix-blend-lighten md:w-3/5 md:opacity-90"
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[70%_40%] opacity-55 sm:opacity-70 md:left-auto md:right-0 md:w-[58%] md:opacity-95"
           style={{
             WebkitMaskImage:
-              "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.85) 45%, black 100%)",
+              "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 38%, black 62%)",
             maskImage:
-              "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.85) 45%, black 100%)",
+              "linear-gradient(to right, transparent 0%, rgba(0,0,0,0.55) 38%, black 62%)",
           }}
         />
-        <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-          <div>
+        <div className="relative z-10 flex h-full min-h-[8.5rem] flex-col items-start justify-between gap-6 sm:min-h-[10rem] md:flex-row md:items-end lg:min-h-[11rem]">
+          <div className="max-w-xl">
             <h1 className="text-2xl font-extrabold tracking-tight text-white lg:text-3xl">
               {t("dashboard.greeting", { name: firstName })}
             </h1>
-            <p className="mt-1.5 max-w-lg text-sm font-medium text-slate-300 lg:text-base">
+            <p className="mt-1.5 text-sm font-medium text-slate-300 lg:text-base">
               {t("dashboard.subtitle")}
             </p>
           </div>
-          <p className="whitespace-pre-line font-handwriting rotate-[-2deg] text-2xl tracking-wide text-slate-200 drop-shadow-md md:pr-2 md:text-right lg:text-3xl">
+          <p className="whitespace-pre-line font-handwriting rotate-[-2deg] text-2xl tracking-wide text-white drop-shadow-md md:max-w-[14rem] md:pr-1 md:text-right lg:text-3xl">
             {t("dashboard.heroQuote")}
           </p>
         </div>

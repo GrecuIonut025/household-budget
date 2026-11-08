@@ -263,7 +263,7 @@ export function GlovoBrasovBrowse({ locale, labels }: { locale: string; labels: 
                 key={item.id}
                 type="button"
                 onClick={() => selectMarket(active ? null : item.retailer_key)}
-                className={buttonClass(active ? "primary" : "secondary")}
+                className={`${buttonClass(active ? "primary" : "secondary")} touch-manipulation`}
               >
                 <span
                   className="mr-1.5 inline-flex size-5 items-center justify-center rounded-md text-[10px] font-bold text-white"
@@ -415,6 +415,17 @@ export function GlovoBrasovBrowse({ locale, labels }: { locale: string; labels: 
   );
 }
 
+const TILE_TONES = [
+  "bg-[#ffe8d6]",
+  "bg-[#e8f6e9]",
+  "bg-[#e7f0ff]",
+  "bg-[#fde7f1]",
+  "bg-[#fff4d6]",
+  "bg-[#ece7ff]",
+  "bg-[#e6faf7]",
+  "bg-[#f2ebe4]",
+];
+
 function CategoryGrid({
   title,
   nodes,
@@ -438,7 +449,7 @@ function CategoryGrid({
           <button
             type="button"
             onClick={onBack}
-            className={`${buttonClass("ghost")} inline-flex items-center gap-1`}
+            className={`${buttonClass("ghost")} inline-flex min-h-11 items-center gap-1 touch-manipulation`}
           >
             <ChevronLeft size={16} />
             {backLabel}
@@ -448,24 +459,44 @@ function CategoryGrid({
       {nodes.length === 0 ? (
         <EmptyState icon={<FolderOpen size={28} />} title={empty} />
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {nodes.map((node) => (
-            <button
-              key={node.slug}
-              type="button"
-              onClick={() => onSelect(node)}
-              className="block text-left"
-            >
-              <Card className="h-full transition hover:border-brand/40">
-                <p className="font-medium text-fg">{node.title}</p>
-                <p className="mt-1 text-xs text-muted">
-                  {node.child_count > 0
-                    ? `${node.child_count} · ${node.product_count}`
-                    : `${node.product_count}`}
-                </p>
-              </Card>
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+          {nodes.map((node, index) => {
+            const tone = TILE_TONES[index % TILE_TONES.length]!;
+            return (
+              <button
+                key={node.slug}
+                type="button"
+                onClick={() => onSelect(node)}
+                className="group flex flex-col items-center gap-2 text-center touch-manipulation"
+              >
+                <span
+                  className={`relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[1.35rem] ${tone} shadow-sm ring-1 ring-black/5 transition duration-200 group-active:scale-[0.97] group-hover:shadow-md`}
+                >
+                  {node.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={node.image_url}
+                      alt=""
+                      className="size-[78%] object-contain drop-shadow-sm transition duration-300 group-hover:scale-105"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <FolderOpen size={28} className="text-black/35" aria-hidden />
+                  )}
+                  {node.product_count > 0 ? (
+                    <span className="absolute right-1.5 bottom-1.5 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
+                      {node.product_count}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="line-clamp-2 px-0.5 text-[12px] leading-tight font-semibold text-fg sm:text-[13px]">
+                  {node.title}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
@@ -494,45 +525,50 @@ function ProductGrid({
       {browse.items.length === 0 ? (
         <EmptyState icon={<Store size={28} />} title={labels.noProductsInCategory} />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {browse.items.map((product) => (
-            <Card key={product.id} className="!p-3">
-              <div className="flex gap-3">
-                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-2">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {browse.items.map((product, index) => {
+            const tone = TILE_TONES[index % TILE_TONES.length]!;
+            return (
+              <article
+                key={product.id}
+                className="overflow-hidden rounded-[1.25rem] border border-border bg-surface shadow-sm"
+              >
+                <div className={`relative flex aspect-square items-center justify-center ${tone}`}>
                   {product.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={product.image_url}
                       alt=""
-                      className="size-full object-cover"
+                      className="size-[82%] object-contain drop-shadow-sm"
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <Store size={20} className="text-muted" />
+                    <Store size={28} className="text-black/30" aria-hidden />
                   )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-2 text-sm font-semibold text-fg">{product.name}</p>
-                  {product.category ? (
-                    <p className="mt-0.5 text-xs text-muted">{product.category}</p>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="tabular text-base font-bold text-fg">
-                      {product.price_display ??
-                        formatMoney(
-                          toMinor(product.price ?? 0),
-                          product.currency || "RON",
-                          locale,
-                        )}
+                  {product.out_of_stock ? (
+                    <span className="absolute top-2 left-2">
+                      <Badge tone="warn">{labels.outOfStock}</Badge>
                     </span>
-                    {product.out_of_stock ? <Badge tone="warn">{labels.outOfStock}</Badge> : null}
-                  </div>
+                  ) : null}
                 </div>
-              </div>
-            </Card>
-          ))}
+                <div className="space-y-1 p-2.5 sm:p-3">
+                  <p className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-fg">
+                    {product.name}
+                  </p>
+                  <p className="tabular text-base font-bold text-fg">
+                    {product.price_display ??
+                      formatMoney(
+                        toMinor(product.price ?? 0),
+                        product.currency || "RON",
+                        locale,
+                      )}
+                  </p>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
@@ -548,7 +584,7 @@ function ProductGrid({
               <button
                 type="button"
                 onClick={() => onPage(browse.page - 1)}
-                className={`${buttonClass("secondary")} inline-flex items-center gap-1`}
+                className={`${buttonClass("secondary")} inline-flex min-h-11 items-center gap-1 touch-manipulation`}
               >
                 <ChevronLeft size={16} />
                 {labels.prev}
@@ -558,7 +594,7 @@ function ProductGrid({
               <button
                 type="button"
                 onClick={() => onPage(browse.page + 1)}
-                className={`${buttonClass("secondary")} inline-flex items-center gap-1`}
+                className={`${buttonClass("secondary")} inline-flex min-h-11 items-center gap-1 touch-manipulation`}
               >
                 {labels.next}
                 <ChevronRight size={16} />

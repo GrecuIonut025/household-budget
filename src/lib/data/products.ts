@@ -59,7 +59,11 @@ export async function getProducts(
     .order("is_favorite", { ascending: false })
     .order("name")
     .limit(limit);
-  if (filter !== "any") query = query.eq("is_archived", filter === "archived");
+  if (filter !== "any") {
+    query = query.eq("is_archived", filter === "archived");
+    // Hide Lidl XLSB catalogue imports from user-facing Produse lists.
+    query = query.neq("data_source", "lidl_xlsb");
+  }
   if (filter === "favorites") query = query.eq("is_favorite", true);
   if (filter === "frequent") query = query.eq("is_frequent", true);
 
@@ -83,7 +87,10 @@ export async function getProducts(
 
   const { data, error } = await query;
   if (error) fail("products", error.message);
-  return (data ?? []).map(withBarcodes);
+  const rows = (data ?? []).map(withBarcodes);
+  // Hide Lidl daily-file imports from the household catalogue UX.
+  if (filter === "any") return rows;
+  return rows.filter((p) => p.data_source !== "lidl_xlsb");
 }
 
 export async function getProduct(householdId: string, id: string): Promise<ProductWithBarcodes | null> {
@@ -152,11 +159,12 @@ export async function getProductPrices(householdId: string, productIds?: string[
   return (data ?? []).map((r) => ({ ...(r as unknown as PriceRow), price: num(r.price) }));
 }
 
+/** Active retailers for UI pickers — Lidl is hidden from the catalogue UX. */
 export async function getRetailers(): Promise<RetailerRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("retailers").select("id, slug, name").eq("is_active", true).order("name");
   if (error) fail("retailers", error.message);
-  return (data ?? []) as RetailerRow[];
+  return ((data ?? []) as RetailerRow[]).filter((r) => r.slug !== "lidl");
 }
 
 /** Product ids for each household barcode spelling; used by the scanner. */
