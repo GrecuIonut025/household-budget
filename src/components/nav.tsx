@@ -23,6 +23,7 @@ export function SidebarNav() {
           <Link
             key={item.href}
             href={item.href}
+            prefetch
             aria-current={active ? "page" : undefined}
             className={clsx(
               "group relative flex min-h-11 items-center gap-3 rounded-2xl px-4 text-sm font-medium transition-all",
@@ -82,6 +83,7 @@ export function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch
               aria-current={active ? "page" : undefined}
               className={tab(active)}
             >
@@ -119,6 +121,7 @@ export function BottomNav() {
                       <li key={`${item.href}-${item.label}`}>
                         <Link
                           href={item.href}
+                          prefetch
                           onClick={() => setMoreOpen(false)}
                           aria-current={active ? "page" : undefined}
                           className={clsx(

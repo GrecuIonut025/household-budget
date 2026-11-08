@@ -16,6 +16,8 @@ Comparare prețuri: **market → categories → subcategories → products** (pa
 3. Open products with images + prices; search within the market
 4. Empty state: run `npm run glovo:sync` once
 
+Browse/search/pagination run **in the browser** after one `/api/glovo/catalog` fetch (no server round-trip per click).
+
 ## Scripts
 
 | Command | What |

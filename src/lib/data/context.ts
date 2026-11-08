@@ -44,15 +44,19 @@ export interface AppContext {
 export const requireAppContext = cache(async (): Promise<AppContext> => {
   const user = await getUser();
   if (!user) redirect("/login");
-  const memberships = await getMemberships();
-  if (memberships.length === 0) redirect("/onboarding");
-
-  const stored = (await cookies()).get(ACTIVE_HOUSEHOLD_COOKIE)?.value;
-  const active = memberships.find((m) => m.household.id === stored) ?? memberships[0];
 
   const supabase = await createClient();
-  const { data: profile } = await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle();
-  const displayName = profile?.display_name || user.email?.split("@")[0] || "";
+  const [memberships, profileResult, cookieStore] = await Promise.all([
+    getMemberships(),
+    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
+    cookies(),
+  ]);
+  if (memberships.length === 0) redirect("/onboarding");
+
+  const stored = cookieStore.get(ACTIVE_HOUSEHOLD_COOKIE)?.value;
+  const active = memberships.find((m) => m.household.id === stored) ?? memberships[0]!;
+  const displayName =
+    profileResult.data?.display_name || user.email?.split("@")[0] || "";
   return { user: { id: user.id, email: user.email }, displayName, memberships, active };
 });
 

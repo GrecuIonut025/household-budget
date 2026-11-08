@@ -1,13 +1,25 @@
 import "server-only";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type {
-  GlovoBrowsePage,
-  GlovoCategoryNode,
-  GlovoMarket,
-  GlovoProduct,
-  GlovoRetailerKey,
-} from "./types";
+import {
+  browseLocalProducts,
+  filterLocalProducts,
+  GLOVO_PAGE_SIZE,
+  listParentCategories,
+  listSubcategories,
+  titleFromSlug,
+  type GlovoRawCategory,
+} from "./browse";
+import type { GlovoMarket, GlovoProduct, GlovoRetailerKey } from "./types";
+
+export {
+  browseLocalProducts,
+  filterLocalProducts,
+  GLOVO_PAGE_SIZE,
+  listParentCategories,
+  listSubcategories,
+};
+export type { GlovoRawCategory };
 
 const RETAILERS: GlovoRetailerKey[] = ["profi", "carrefour", "kaufland", "mega_image"];
 
@@ -35,8 +47,6 @@ const MARKET_META: Record<
     logo_emoji: "M",
   },
 };
-
-export const GLOVO_PAGE_SIZE = 24;
 
 export function staticGlovoMarkets(): GlovoMarket[] {
   return RETAILERS.map((key) => {
@@ -105,16 +115,6 @@ function parseEans(raw: unknown): string[] {
   return [];
 }
 
-function titleFromSlug(slug: string): string {
-  const base = slug
-    .replace(/-sc\.\d+$/i, "")
-    .replace(/-c\.\d+$/i, "")
-    .replace(/[_-]+/g, " ")
-    .trim();
-  if (!base) return slug;
-  return base.replace(/\b\w/g, (ch) => ch.toUpperCase());
-}
-
 function parseLinkSegments(path: string): string[] {
   const match = String(path || "").match(/[?&]link=([^&]+)/);
   if (!match) return [];
@@ -125,32 +125,20 @@ function parseLinkSegments(path: string): string[] {
   }
 }
 
-type RawCategory = {
-  retailer: GlovoRetailerKey;
-  title: string;
-  slug: string | null;
-  path: string;
-  parent_slug: string | null;
-  parent_title: string | null;
-};
-
-function loadRawCategories(): RawCategory[] {
+function loadRawCategories(): GlovoRawCategory[] {
   const path = resolveLocalCategoriesPath();
   if (!path) return [];
   try {
     const payload = JSON.parse(readFileSync(path, "utf8"));
     if (!Array.isArray(payload)) return [];
-    const out: RawCategory[] = [];
+    const out: GlovoRawCategory[] = [];
     for (const row of payload) {
       if (!row || typeof row !== "object") continue;
       const retailer = String((row as { retailer?: string }).retailer || "") as GlovoRetailerKey;
       if (!RETAILERS.includes(retailer)) continue;
       const catPath = String((row as { path?: string }).path || "");
       const segments = parseLinkSegments(catPath);
-      const leaf =
-        (row as { slug?: string }).slug ||
-        segments[segments.length - 1] ||
-        null;
+      const leaf = (row as { slug?: string }).slug || segments[segments.length - 1] || null;
       const parentSlug =
         (row as { parent_slug?: string | null }).parent_slug ??
         (segments.length > 1 ? segments[segments.length - 2]! : null);
@@ -172,15 +160,35 @@ function loadRawCategories(): RawCategory[] {
   }
 }
 
-/** Read crawler / fixture JSON for Comparare prețuri (no Supabase write needed). */
-export function loadLocalGlovoCatalog(): {
+type CatalogPayload = {
   path: string;
   markets: GlovoMarket[];
   products: GlovoProduct[];
-  categories: RawCategory[];
-} | null {
+  categories: GlovoRawCategory[];
+  mtimeMs: number;
+};
+
+let catalogCache: CatalogPayload | null = null;
+
+function fileMtime(path: string | null): number {
+  if (!path) return 0;
+  try {
+    return statSync(path).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+/** Read crawler / fixture JSON once; invalidate when files change on disk. */
+export function loadLocalGlovoCatalog(): CatalogPayload | null {
   const path = resolveLocalGlovoCatalogPath();
   if (!path) return null;
+
+  const catPath = resolveLocalCategoriesPath();
+  const mtimeMs = Math.max(fileMtime(path), fileMtime(catPath));
+  if (catalogCache && catalogCache.path === path && catalogCache.mtimeMs === mtimeMs) {
+    return catalogCache;
+  }
 
   let payload: unknown;
   try {
@@ -191,7 +199,7 @@ export function loadLocalGlovoCatalog(): {
   if (!Array.isArray(payload)) return null;
 
   const categories = loadRawCategories();
-  const byTitle = new Map<string, RawCategory>();
+  const byTitle = new Map<string, GlovoRawCategory>();
   for (const cat of categories) {
     byTitle.set(`${cat.retailer}:${cat.title.toLowerCase()}`, cat);
   }
@@ -235,9 +243,7 @@ export function loadLocalGlovoCatalog(): {
       image_id: row.image_id != null ? String(row.image_id) : null,
       category: categoryTitle,
       category_slug:
-        row.category_slug != null
-          ? String(row.category_slug)
-          : matched?.slug ?? null,
+        row.category_slug != null ? String(row.category_slug) : matched?.slug ?? null,
       parent_category:
         row.parent_category != null
           ? String(row.parent_category)
@@ -252,194 +258,6 @@ export function loadLocalGlovoCatalog(): {
     });
   }
 
-  return { path, markets, products, categories };
-}
-
-export function listParentCategories(
-  retailer: GlovoRetailerKey,
-  products: GlovoProduct[],
-  categories: RawCategory[],
-): GlovoCategoryNode[] {
-  const parents = new Map<string, GlovoCategoryNode>();
-  const childrenByParent = new Map<string, Set<string>>();
-
-  for (const cat of categories) {
-    if (cat.retailer !== retailer) continue;
-    if (cat.parent_slug) {
-      const set = childrenByParent.get(cat.parent_slug) ?? new Set();
-      if (cat.slug) set.add(cat.slug);
-      childrenByParent.set(cat.parent_slug, set);
-      if (!parents.has(cat.parent_slug)) {
-        parents.set(cat.parent_slug, {
-          slug: cat.parent_slug,
-          title: cat.parent_title || titleFromSlug(cat.parent_slug),
-          parent_slug: null,
-          retailer_key: retailer,
-          product_count: 0,
-          child_count: 0,
-        });
-      }
-    } else if (cat.slug) {
-      // Top-level leaf discovered from HOME
-      if (!parents.has(cat.slug)) {
-        parents.set(cat.slug, {
-          slug: cat.slug,
-          title: cat.title,
-          parent_slug: null,
-          retailer_key: retailer,
-          product_count: 0,
-          child_count: 0,
-        });
-      }
-    }
-  }
-
-  for (const product of products) {
-    if (product.retailer_key !== retailer || product.price == null) continue;
-    const parentSlug = product.parent_category_slug || product.category_slug;
-    if (!parentSlug) continue;
-    const node = parents.get(parentSlug);
-    if (node) node.product_count += 1;
-    else {
-      parents.set(parentSlug, {
-        slug: parentSlug,
-        title: product.parent_category || product.category || titleFromSlug(parentSlug),
-        parent_slug: null,
-        retailer_key: retailer,
-        product_count: 1,
-        child_count: 0,
-      });
-    }
-  }
-
-  for (const [slug, node] of parents) {
-    node.child_count = childrenByParent.get(slug)?.size ?? 0;
-  }
-
-  return [...parents.values()]
-    .filter((n) => n.product_count > 0 || n.child_count > 0)
-    .sort((a, b) => a.title.localeCompare(b.title, "ro"));
-}
-
-export function listSubcategories(
-  retailer: GlovoRetailerKey,
-  parentSlug: string,
-  products: GlovoProduct[],
-  categories: RawCategory[],
-): GlovoCategoryNode[] {
-  const nodes = new Map<string, GlovoCategoryNode>();
-  for (const cat of categories) {
-    if (cat.retailer !== retailer || cat.parent_slug !== parentSlug || !cat.slug) continue;
-    nodes.set(cat.slug, {
-      slug: cat.slug,
-      title: cat.title,
-      parent_slug: parentSlug,
-      retailer_key: retailer,
-      product_count: 0,
-      child_count: 0,
-    });
-  }
-  for (const product of products) {
-    if (product.retailer_key !== retailer || product.price == null) continue;
-    if (product.parent_category_slug !== parentSlug) continue;
-    const slug = product.category_slug;
-    if (!slug) continue;
-    const node = nodes.get(slug);
-    if (node) node.product_count += 1;
-    else {
-      nodes.set(slug, {
-        slug,
-        title: product.category || titleFromSlug(slug),
-        parent_slug: parentSlug,
-        retailer_key: retailer,
-        product_count: 1,
-        child_count: 0,
-      });
-    }
-  }
-  return [...nodes.values()]
-    .filter((n) => n.product_count > 0)
-    .sort((a, b) => a.title.localeCompare(b.title, "ro"));
-}
-
-export function browseLocalProducts(
-  products: GlovoProduct[],
-  opts: {
-    retailer: GlovoRetailerKey;
-    parentSlug?: string | null;
-    categorySlug?: string | null;
-    query?: string;
-    page?: number;
-    pageSize?: number;
-  },
-): GlovoBrowsePage {
-  const pageSize = Math.min(Math.max(opts.pageSize ?? GLOVO_PAGE_SIZE, 1), 100);
-  const page = Math.max(opts.page ?? 1, 1);
-  const q = opts.query?.trim().toLowerCase() ?? "";
-
-  let rows = products.filter((p) => p.retailer_key === opts.retailer && p.price != null);
-
-  if (opts.categorySlug) {
-    rows = rows.filter(
-      (p) =>
-        p.category_slug === opts.categorySlug ||
-        (p.category &&
-          p.category.toLowerCase() === opts.categorySlug!.replace(/-c\.\d+$/i, "").replace(/-/g, " ")),
-    );
-  } else if (opts.parentSlug) {
-    rows = rows.filter(
-      (p) =>
-        p.parent_category_slug === opts.parentSlug ||
-        p.category_slug === opts.parentSlug,
-    );
-  }
-
-  if (q) {
-    if (/^\d{8,14}$/.test(q)) {
-      rows = rows.filter((p) => p.eans.some((ean) => ean.includes(q)));
-    } else {
-      rows = rows.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.category?.toLowerCase().includes(q) ?? false) ||
-          (p.parent_category?.toLowerCase().includes(q) ?? false),
-      );
-    }
-  }
-
-  rows.sort((a, b) => a.name.localeCompare(b.name, "ro"));
-  const total = rows.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * pageSize;
-  return {
-    items: rows.slice(start, start + pageSize),
-    total,
-    page: safePage,
-    pageSize,
-    totalPages,
-  };
-}
-
-export function filterLocalProducts(
-  products: GlovoProduct[],
-  opts: { query?: string; retailer?: GlovoRetailerKey | null; limit?: number },
-): GlovoProduct[] {
-  const q = opts.query?.trim().toLowerCase() ?? "";
-  let rows = products.filter((p) => p.price != null);
-  if (opts.retailer) rows = rows.filter((p) => p.retailer_key === opts.retailer);
-  if (q) {
-    if (/^\d{8,14}$/.test(q)) {
-      rows = rows.filter((p) => p.eans.some((ean) => ean.includes(q)));
-    } else {
-      rows = rows.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.category?.toLowerCase().includes(q) ?? false),
-      );
-    }
-  }
-  rows.sort((a, b) => a.name.localeCompare(b.name, "ro"));
-  const limit = Math.min(Math.max(opts.limit ?? 240, 1), 800);
-  return rows.slice(0, limit);
+  catalogCache = { path, markets, products, categories, mtimeMs };
+  return catalogCache;
 }

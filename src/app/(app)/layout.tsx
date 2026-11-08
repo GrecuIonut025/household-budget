@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { LogOut, Settings } from "lucide-react";
 import { signOut } from "@/app/(auth)/actions";
 import { BottomNav, SidebarNav } from "@/components/nav";
 import { NotificationsBell } from "@/components/notifications/bell";
+import { PrefetchGlovoCatalog } from "@/components/prices/prefetch-glovo";
 import { SetupRequired } from "@/components/setup-required";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getNotifications } from "@/lib/data/community";
@@ -17,6 +19,68 @@ function initials(name: string): string {
   return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`.toUpperCase();
 }
 
+async function HouseholdCard({
+  householdId,
+  householdName,
+}: {
+  householdId: string;
+  householdName: string;
+}) {
+  const { t } = await getTranslator();
+  const members = await getMembers(householdId);
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-[#232a48] bg-gradient-to-b from-[#181d33] to-[#121626] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted">
+        {t("nav.yourHousehold")}
+      </p>
+      <p className="mt-1 truncate text-sm font-semibold text-white">{householdName}</p>
+      <div className="mt-3 flex items-center gap-2">
+        <div className="flex -space-x-2">
+          {members.slice(0, 4).map((m) => (
+            <span
+              key={m.user_id}
+              title={m.display_name}
+              className="inline-flex size-7 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-brand-fg ring-2 ring-[#121626]"
+            >
+              {initials(m.display_name)}
+            </span>
+          ))}
+        </div>
+        <p className="min-w-0 flex-1 truncate text-xs text-sidebar-muted">
+          {t("nav.membersCount", { count: members.length })}
+        </p>
+        <Link
+          href="/settings#members"
+          prefetch
+          className="inline-flex shrink-0 items-center rounded-xl bg-sidebar px-2.5 py-1 text-[11px] font-semibold text-sidebar-fg ring-1 ring-sidebar-border transition hover:bg-sidebar-hover"
+        >
+          {t("nav.manageHousehold")}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+async function LayoutNotifications({
+  userId,
+  compact,
+}: {
+  userId: string;
+  compact?: boolean;
+}) {
+  const notifications = await getNotifications(userId, 20).catch(() => ({
+    items: [],
+    unreadCount: 0,
+  }));
+  return (
+    <NotificationsBell
+      items={notifications.items}
+      unreadCount={notifications.unreadCount}
+      compact={compact}
+    />
+  );
+}
+
 export default async function AppLayout({
   children,
 }: {
@@ -25,14 +89,10 @@ export default async function AppLayout({
   if (!getSupabaseEnv()) return <SetupRequired />;
   const ctx = await requireAppContext();
   const { t } = await getTranslator();
-  const members = await getMembers(ctx.active.household.id);
-  const notifications = await getNotifications(ctx.user.id, 20).catch(() => ({
-    items: [],
-    unreadCount: 0,
-  }));
 
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[16rem_1fr]">
+      <PrefetchGlovoCatalog />
       <aside className="sticky top-0 z-30 hidden h-dvh flex-col justify-between border-r border-sidebar-border bg-sidebar p-5 text-sidebar-fg md:flex">
         <div className="flex min-h-0 flex-1 flex-col gap-7">
           <div className="flex items-center gap-3 px-1 pt-1">
@@ -64,47 +124,26 @@ export default async function AppLayout({
         </div>
 
         <div className="mt-8 flex flex-col gap-4">
-          <div className="relative overflow-hidden rounded-2xl border border-[#232a48] bg-gradient-to-b from-[#181d33] to-[#121626] p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted">
-              {t("nav.yourHousehold")}
-            </p>
-            <p className="mt-1 truncate text-sm font-semibold text-white">
-              {ctx.active.household.name}
-            </p>
-            <div className="mt-3 flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {members.slice(0, 4).map((m) => (
-                  <span
-                    key={m.user_id}
-                    title={m.display_name}
-                    className="inline-flex size-7 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-brand-fg ring-2 ring-[#121626]"
-                  >
-                    {initials(m.display_name)}
-                  </span>
-                ))}
-              </div>
-              <p className="min-w-0 flex-1 truncate text-xs text-sidebar-muted">
-                {t("nav.membersCount", { count: members.length })}
-              </p>
-              <Link
-                href="/settings#members"
-                className="inline-flex shrink-0 items-center rounded-xl bg-sidebar px-2.5 py-1 text-[11px] font-semibold text-sidebar-fg ring-1 ring-sidebar-border transition hover:bg-sidebar-hover"
-              >
-                {t("nav.manageHousehold")}
-              </Link>
-            </div>
-          </div>
+          <Suspense
+            fallback={
+              <div className="h-28 animate-pulse rounded-2xl border border-[#232a48] bg-[#121626]" />
+            }
+          >
+            <HouseholdCard
+              householdId={ctx.active.household.id}
+              householdName={ctx.active.household.name}
+            />
+          </Suspense>
 
           <ThemeToggle variant="pill" />
 
           <div className="flex items-center justify-center gap-1">
-            <NotificationsBell
-              items={notifications.items}
-              unreadCount={notifications.unreadCount}
-              compact
-            />
+            <Suspense fallback={<div className="size-10" />}>
+              <LayoutNotifications userId={ctx.user.id} compact />
+            </Suspense>
             <Link
               href="/settings"
+              prefetch
               className="inline-flex size-10 items-center justify-center rounded-2xl text-sidebar-muted transition hover:bg-sidebar-hover hover:text-sidebar-fg"
               aria-label={t("nav.settings")}
             >
@@ -134,10 +173,9 @@ export default async function AppLayout({
           </div>
           <p className="min-w-0 flex-1 truncate text-sm font-bold">{t("app.name")}</p>
           <div className="relative z-10 flex shrink-0 items-center gap-1 pointer-events-auto">
-            <NotificationsBell
-              items={notifications.items}
-              unreadCount={notifications.unreadCount}
-            />
+            <Suspense fallback={<div className="size-10" />}>
+              <LayoutNotifications userId={ctx.user.id} />
+            </Suspense>
             <ThemeToggle compact />
           </div>
         </header>
