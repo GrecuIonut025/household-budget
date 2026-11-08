@@ -2,7 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./env";
 
-const PUBLIC_PREFIXES = ["/login", "/signup", "/auth", "/offline", "/icons", "/manifest.webmanifest", "/sw.js", "/favicon.ico"];
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/signup",
+  "/auth",
+  "/offline",
+  "/icons",
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/favicon.ico",
+  "/visual-shell",
+];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
