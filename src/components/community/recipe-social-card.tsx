@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { AuthorChip } from "@/components/community/author-chip";
@@ -34,9 +34,11 @@ export function RecipeSocialCard({
   const ownHousehold = item.householdId === householdId;
   const commentsRef = useRef<InlineCommentsHandle | null>(null);
   const likes = item.reactions.total;
+  const [captionOpen, setCaptionOpen] = useState(false);
+  const longCaption = Boolean(item.description && item.description.length > 90);
 
   return (
-    <article className="border-b border-border-soft bg-bg pb-3">
+    <article className="border-b border-border-soft pb-3">
       <header className="flex items-center gap-2 px-3 py-2.5">
         {item.author ? (
           <AuthorChip author={item.author} t={t} size="sm" className="min-w-0 flex-1" />
@@ -99,7 +101,23 @@ export function RecipeSocialCard({
           ) : null}
           <span className="font-medium">{item.title}</span>
           {item.description ? (
-            <span className="text-muted"> — {item.description}</span>
+            <>
+              <span className="text-muted">
+                {" — "}
+                {captionOpen || !longCaption
+                  ? item.description
+                  : `${item.description.slice(0, 90).trimEnd()}…`}
+              </span>
+              {longCaption && !captionOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setCaptionOpen(true)}
+                  className="ml-1 text-muted hover:text-fg"
+                >
+                  {t("community.captionMore")}
+                </button>
+              ) : null}
+            </>
           ) : null}
         </p>
         <Link

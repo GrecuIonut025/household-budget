@@ -32,7 +32,7 @@ export function StoriesStrip({
               className="flex flex-col items-center gap-1.5"
             >
               <span className="rounded-full bg-gradient-to-tr from-brand-amber via-brand to-brand-indigo p-[2px]">
-                <span className="grid size-14 place-items-center overflow-hidden rounded-full border-2 border-bg bg-surface-2 text-xs font-semibold text-fg">
+                <span className="grid size-14 place-items-center overflow-hidden rounded-full border-2 border-bg bg-surface-2 text-xs font-semibold text-fg md:border-surface">
                   {author.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

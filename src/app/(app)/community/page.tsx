@@ -54,29 +54,26 @@ export default async function CommunityPage({
     );
   });
 
-  const chip = (active: boolean) =>
-    clsx(
-      "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold transition",
-      active ? "bg-fg text-bg" : "text-muted hover:text-fg",
-    );
-
   return (
     <div className="-mx-4 flex justify-center sm:-mx-6 md:mx-0 md:px-0">
       <div className="w-full max-w-[470px] border-border md:rounded-2xl md:border md:bg-surface md:shadow-card">
-        <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-border-soft bg-bg/95 px-3 py-2.5 backdrop-blur md:top-0 md:rounded-t-2xl md:bg-surface/95">
+        <header className="sticky top-14 z-10 flex items-center gap-2 border-b border-border-soft bg-bg/95 px-3 py-2.5 backdrop-blur md:top-0 md:rounded-t-2xl md:bg-surface/95">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold tracking-tight text-fg">
+            <h1 className="truncate text-[22px] font-bold tracking-tight text-fg">
               {t("community.title")}
             </h1>
-            <p className="truncate text-[11px] text-muted">{t("community.subtitleGlobal")}</p>
           </div>
           <nav className="flex items-center gap-1" aria-label={t("community.title")}>
-            <Link href="/community" className={chip(tab === "feed")}>
-              {t("community.tab.feed")}
-            </Link>
-            <Link href="/community?tab=tips" className={chip(tab === "tips")}>
-              <Lightbulb size={14} aria-hidden />
-              <span className="sr-only sm:not-sr-only">{t("community.tab.tips")}</span>
+            <Link
+              href="/community?tab=tips"
+              className={clsx(
+                "inline-flex size-10 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg",
+                tab === "tips" && "bg-surface-2 text-fg",
+              )}
+              aria-label={t("community.tab.tips")}
+              title={t("community.tab.tips")}
+            >
+              <Lightbulb size={18} aria-hidden />
             </Link>
             {writer ? <ComposeTrigger householdId={household.id} recipes={composeRecipes} /> : null}
           </nav>

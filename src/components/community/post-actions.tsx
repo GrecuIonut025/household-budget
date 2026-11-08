@@ -4,12 +4,12 @@ import { useRef, useState, useTransition, type ReactNode } from "react";
 import clsx from "clsx";
 import { Bookmark, Heart, Lightbulb, MessageCircle, ThumbsUp } from "lucide-react";
 import { toggleRecipeReaction } from "@/app/actions/community";
-import { FavoriteButton } from "@/components/recipes/favorite-button";
+import { toggleFavorite } from "@/app/actions/recipes";
 import type { RecipeReactionSummary } from "@/lib/data/community";
 import type { ReactionKind } from "@/lib/community/reactions";
 import { useI18n } from "@/lib/i18n/provider";
 
-/** Instagram-style action row: heart, comment, optional bookmark + subtle extra reactions. */
+/** Instagram-style action row: heart + comment + bookmark; extra reactions stay secondary. */
 export function PostActions({
   recipeId,
   householdId,
@@ -48,84 +48,107 @@ export function PostActions({
   }
 
   return (
-    <div className="flex items-center gap-1 px-3 pt-2">
-      <form action={toggleRecipeReaction} className="contents">
-        <input type="hidden" name="recipeId" value={recipeId} />
-        <input type="hidden" name="kind" value="love" />
-        <button
-          type="submit"
-          disabled={!canReact}
-          aria-label={t("community.reaction.love")}
-          aria-pressed={loved}
-          className={clsx(
-            "grid size-11 place-items-center rounded-full transition active:scale-90",
-            loved ? "text-brand-coral" : "text-fg hover:text-brand-coral",
-            !canReact && "opacity-50",
-          )}
-        >
-          <Heart size={26} aria-hidden fill={loved ? "currentColor" : "none"} strokeWidth={1.75} />
-        </button>
-      </form>
+    <div className="space-y-1">
+      <div className="flex items-center gap-0.5 px-2 pt-1.5">
+        <form action={toggleRecipeReaction} className="contents">
+          <input type="hidden" name="recipeId" value={recipeId} />
+          <input type="hidden" name="kind" value="love" />
+          <button
+            type="submit"
+            disabled={!canReact}
+            aria-label={t("community.reaction.love")}
+            aria-pressed={loved}
+            className={clsx(
+              "grid size-11 place-items-center rounded-full transition active:scale-90",
+              loved ? "text-brand-coral" : "text-fg hover:opacity-70",
+              !canReact && "opacity-50",
+            )}
+          >
+            <Heart
+              size={26}
+              aria-hidden
+              fill={loved ? "currentColor" : "none"}
+              strokeWidth={1.75}
+            />
+          </button>
+        </form>
 
-      <button
-        type="button"
-        onClick={onCommentClick}
-        aria-label={t("community.commentsTitle")}
-        className="grid size-11 place-items-center rounded-full text-fg transition hover:text-muted active:scale-90"
-      >
-        <MessageCircle size={26} aria-hidden strokeWidth={1.75} />
-        {commentCount > 0 ? (
-          <span className="sr-only">{t("community.showComments", { count: commentCount })}</span>
-        ) : null}
-      </button>
+        <button
+          type="button"
+          onClick={onCommentClick}
+          aria-label={t("community.commentsTitle")}
+          className="grid size-11 place-items-center rounded-full text-fg transition hover:opacity-70 active:scale-90"
+        >
+          <MessageCircle size={26} aria-hidden strokeWidth={1.75} />
+          {commentCount > 0 ? (
+            <span className="sr-only">
+              {t("community.showComments", { count: commentCount })}
+            </span>
+          ) : null}
+        </button>
+
+        <div className="ml-auto">
+          {canFavorite && ownHousehold ? (
+            <form action={toggleFavorite}>
+              <input type="hidden" name="id" value={recipeId} />
+              <input type="hidden" name="householdId" value={householdId} />
+              <input type="hidden" name="favorite" value={String(!isFavorite)} />
+              <button
+                type="submit"
+                aria-label={isFavorite ? t("recipes.unfavorite") : t("recipes.favorite")}
+                aria-pressed={isFavorite}
+                className="grid size-11 place-items-center rounded-full text-fg transition hover:opacity-70 active:scale-90"
+              >
+                <Bookmark
+                  size={26}
+                  aria-hidden
+                  fill={isFavorite ? "currentColor" : "none"}
+                  strokeWidth={1.75}
+                />
+              </button>
+            </form>
+          ) : (
+            <span className="grid size-11 place-items-center text-transparent" aria-hidden>
+              <Bookmark size={26} />
+            </span>
+          )}
+        </div>
+      </div>
 
       {canReact ? (
-        <>
+        <div className="flex flex-wrap items-center gap-2 px-4 pb-0.5">
           <button
             type="button"
             onClick={() => toggle("like")}
-            aria-label={t("community.reaction.like")}
             aria-pressed={liked}
             className={clsx(
-              "grid size-10 place-items-center rounded-full transition active:scale-90",
+              "inline-flex items-center gap-1 text-[11px] font-semibold transition",
               liked ? "text-brand" : "text-muted hover:text-fg",
             )}
           >
-            <ThumbsUp size={20} aria-hidden fill={liked ? "currentColor" : "none"} strokeWidth={1.75} />
+            <ThumbsUp size={12} aria-hidden fill={liked ? "currentColor" : "none"} />
+            {t("community.reaction.like")}
+            {summary.counts.like > 0 ? (
+              <span className="tabular font-normal">{summary.counts.like}</span>
+            ) : null}
           </button>
           <button
             type="button"
             onClick={() => toggle("useful")}
-            aria-label={t("community.reaction.useful")}
             aria-pressed={useful}
             className={clsx(
-              "grid size-10 place-items-center rounded-full transition active:scale-90",
+              "inline-flex items-center gap-1 text-[11px] font-semibold transition",
               useful ? "text-brand-amber" : "text-muted hover:text-fg",
             )}
           >
-            <Lightbulb size={20} aria-hidden fill={useful ? "currentColor" : "none"} strokeWidth={1.75} />
+            <Lightbulb size={12} aria-hidden fill={useful ? "currentColor" : "none"} />
+            {t("community.reaction.useful")}
+            {summary.counts.useful > 0 ? (
+              <span className="tabular font-normal">{summary.counts.useful}</span>
+            ) : null}
           </button>
-        </>
+        </div>
       ) : null}
-
-      <div className="ml-auto">
-        {canFavorite && ownHousehold ? (
-          <FavoriteButton
-            recipeId={recipeId}
-            householdId={householdId}
-            isFavorite={isFavorite}
-            label={isFavorite ? t("recipes.unfavorite") : t("recipes.favorite")}
-            className={clsx(
-              "size-11 bg-transparent backdrop-blur-none",
-              isFavorite ? "text-fg" : "text-fg hover:text-muted",
-            )}
-          />
-        ) : (
-          <span className="grid size-11 place-items-center text-transparent" aria-hidden>
-            <Bookmark size={24} />
-          </span>
-        )}
-      </div>
     </div>
   );
 }
