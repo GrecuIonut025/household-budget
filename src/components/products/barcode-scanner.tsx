@@ -58,14 +58,35 @@ function ScannerBody({ onCode, busy, error }: { onCode: (code: string) => void; 
     };
 
     async function start() {
+      // Camera APIs require HTTPS (or localhost). On phone-over-LAN HTTP the browser
+      // never shows a permission prompt — detect that before calling getUserMedia.
+      if (
+        typeof window !== "undefined" &&
+        window.isSecureContext === false
+      ) {
+        if (!cancelled) setCamera("unsupported");
+        return;
+      }
       if (!navigator.mediaDevices?.getUserMedia) {
-        setCamera("unsupported");
+        if (!cancelled) setCamera("unsupported");
         return;
       }
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
-      } catch {
-        if (!cancelled) setCamera("denied");
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+      } catch (err) {
+        if (cancelled) return;
+        const name = err instanceof DOMException ? err.name : "";
+        // NotAllowedError = user denied; elsewhere on HTTP browsers may throw SecurityError.
+        setCamera(
+          name === "NotAllowedError" || name === "PermissionDeniedError"
+            ? "denied"
+            : name === "SecurityError" || name === "NotSupportedError"
+              ? "unsupported"
+              : "denied",
+        );
         return;
       }
       const el = video.current;

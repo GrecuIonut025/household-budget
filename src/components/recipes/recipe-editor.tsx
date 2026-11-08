@@ -8,6 +8,7 @@ import { saveRecipe } from "@/app/actions/recipes";
 import { Alert, Button, Card, CardTitle, Field, buttonClass, inputClass } from "@/components/ui";
 import { useI18n } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n";
+import { newUuid } from "@/lib/id";
 import { priceBasisFromProduct } from "@/lib/recipes/pricing";
 import { RECIPE_CATEGORIES, parseQuantityInput, type RecipePayload } from "@/lib/recipes/schema";
 import type { ProductOption, RecipeWithIngredients } from "@/lib/recipes/types";
@@ -40,7 +41,7 @@ interface IngredientRow {
   substitutions: SubRow[];
 }
 
-const newKey = () => crypto.randomUUID();
+const newKey = () => newUuid();
 const emptyIngredient = (): IngredientRow => ({
   key: newKey(),
   productId: null,
@@ -208,7 +209,7 @@ export function RecipeEditor({ householdId, recipeId, recipe, imageUrl, products
       if (uploadedRef.current?.file === file) {
         path = uploadedRef.current.path;
       } else {
-        const objectPath = `${householdId}/recipes/${recipeId}/${crypto.randomUUID()}.${PHOTO_TYPES[file.type]}`;
+        const objectPath = `${householdId}/recipes/${recipeId}/${newUuid()}.${PHOTO_TYPES[file.type]}`;
         const { error: uploadError } = await createClient().storage.from(MEDIA_BUCKET).upload(objectPath, file, { contentType: file.type, upsert: false });
         if (uploadError) {
           setBusy(false);
