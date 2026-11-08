@@ -27,9 +27,29 @@ export type GlovoProduct = {
   image_url: string | null;
   image_id: string | null;
   category: string | null;
+  category_slug: string | null;
+  parent_category: string | null;
+  parent_category_slug: string | null;
   eans: string[];
   out_of_stock: boolean;
   observed_at: string;
+};
+
+export type GlovoCategoryNode = {
+  slug: string;
+  title: string;
+  parent_slug: string | null;
+  retailer_key: GlovoRetailerKey;
+  product_count: number;
+  child_count: number;
+};
+
+export type GlovoBrowsePage = {
+  items: GlovoProduct[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
 
 export type GlovoQuote = {

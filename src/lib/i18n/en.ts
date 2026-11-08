@@ -331,7 +331,7 @@ export const en = {
 
   "placeholder.title": "Coming soon",
   "placeholder.products": "Your household product catalogue with barcodes and purchase statistics will live here.",
-  "placeholder.priceComparison": "Compare prices across Lidl, Kaufland, Carrefour, Auchan, Penny, Profi and Mega Image.",
+  "placeholder.priceComparison": "Browse Brașov Glovo catalogs — Profi, Carrefour, Kaufland and Mega Image.",
   "placeholder.recipes": "Save recipes and turn their ingredients into shopping lists.",
   "placeholder.mealPlanner": "Plan the week's meals and see what they cost.",
   "placeholder.shoppingLists": "Plan shopping, reserve budget for it and check items off in the store.",

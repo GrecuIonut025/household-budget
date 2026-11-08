@@ -295,7 +295,7 @@ function extractEans(node) {
   return [...values].sort();
 }
 
-function extractProduct(node, retailer, category, store) {
+function extractProduct(node, retailer, categoryMeta, store) {
   const productType = node.type;
   if (productType !== "PRODUCT_TILE" && productType !== "RESTRICTED_PRODUCT_TILE") {
     return null;
@@ -312,6 +312,8 @@ function extractProduct(node, retailer, category, store) {
   const key = `${retailer}:${identity}`;
   const priceInfo = data.priceInfo || {};
   const tracking = data.tracking || {};
+  const categoryTitle =
+    typeof categoryMeta === "string" ? categoryMeta : categoryMeta?.title || "HOME";
 
   return [
     key,
@@ -329,7 +331,11 @@ function extractProduct(node, retailer, category, store) {
       price_display: priceInfo.displayText ?? null,
       image_url: data.imageUrl ?? null,
       image_id: data.imageId ?? null,
-      category,
+      category: categoryTitle,
+      category_slug: typeof categoryMeta === "object" ? categoryMeta?.slug ?? null : null,
+      parent_category: typeof categoryMeta === "object" ? categoryMeta?.parent_title ?? null : null,
+      parent_category_slug:
+        typeof categoryMeta === "object" ? categoryMeta?.parent_slug ?? null : null,
       out_of_stock: data.outOfStock ?? false,
       restricted: data.restricted ?? productType === "RESTRICTED_PRODUCT_TILE",
       sale_type: tracking.productSaleType ?? null,
@@ -347,10 +353,10 @@ function extractProduct(node, retailer, category, store) {
   ];
 }
 
-function extractProducts(data, retailer, category, store, allProducts) {
+function extractProducts(data, retailer, categoryMeta, store, allProducts) {
   let extracted = 0;
   for (const obj of walk(data)) {
-    const result = extractProduct(obj, retailer, category, store);
+    const result = extractProduct(obj, retailer, categoryMeta, store);
     if (!result) continue;
     const [key, product] = result;
     const existing = allProducts.get(key);
@@ -373,6 +379,51 @@ function extractProducts(data, retailer, category, store, allProducts) {
     }
   }
   return extracted;
+}
+
+/** Parse Glovo deep-link path → slug segments (parent section / leaf category). */
+function parseLinkSegments(path) {
+  const match = String(path || "").match(/[?&]link=([^&]+)/);
+  if (!match) return [];
+  try {
+    return decodeURIComponent(match[1])
+      .split("/")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } catch {
+    return match[1].split("/").filter(Boolean);
+  }
+}
+
+function titleFromSlug(slug) {
+  const base = String(slug || "")
+    .replace(/-sc\.\d+$/i, "")
+    .replace(/-c\.\d+$/i, "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  if (!base) return slug || "Categorie";
+  return base.replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
+function enrichCategoryRecord(retailer, store, child, path, slugTitleMap) {
+  const segments = parseLinkSegments(path);
+  const leafSlug = child.slug || segments[segments.length - 1] || null;
+  const parentSlug = segments.length > 1 ? segments[segments.length - 2] : null;
+  if (leafSlug) slugTitleMap.set(leafSlug, child.title || titleFromSlug(leafSlug));
+  if (parentSlug && !slugTitleMap.has(parentSlug)) {
+    slugTitleMap.set(parentSlug, titleFromSlug(parentSlug));
+  }
+  return {
+    retailer,
+    store_id: store.store_id,
+    address_id: store.address_id,
+    title: child.title,
+    slug: leafSlug,
+    path,
+    parent_slug: parentSlug,
+    parent_title: parentSlug ? slugTitleMap.get(parentSlug) || titleFromSlug(parentSlug) : null,
+    link_segments: segments,
+  };
 }
 
 function extractDeepLinks(data) {
@@ -478,8 +529,13 @@ async function crawlStore(retailer, store, allProducts, allCategories, failedReq
       product.store_product_id || product.external_id || product.product_id || product.name;
     allProducts.set(`${retailer}:${identity}`, product);
   }
+  const slugTitleMap = new Map();
   for (const category of state.categories || []) {
     allCategories.set(`${retailer}:${category.path}`, category);
+    if (category.slug) slugTitleMap.set(category.slug, category.title);
+    if (category.parent_slug && category.parent_title) {
+      slugTitleMap.set(category.parent_slug, category.parent_title);
+    }
   }
 
   const visited = new Set(state.visited || []);
@@ -526,21 +582,26 @@ async function crawlStore(retailer, store, allProducts, allCategories, failedReq
       }
     }
 
-    const newProducts = extractProducts(data, retailer, category, store, allProducts);
+    const currentMeta =
+      path == null
+        ? { title: "HOME", slug: null, parent_slug: null, parent_title: null }
+        : enrichCategoryRecord(
+            retailer,
+            store,
+            { title: category, slug: current.slug || null },
+            path,
+            slugTitleMap,
+          );
+
+    const newProducts = extractProducts(data, retailer, currentMeta, store, allProducts);
     const discovered = extractDeepLinks(data);
     let newCategories = 0;
     for (const [childPath, child] of Object.entries(discovered)) {
       if (visited.has(childPath)) continue;
       if (state.queue.some((item) => item.path === childPath)) continue;
-      state.queue.push({ path: childPath, title: child.title });
-      allCategories.set(`${retailer}:${childPath}`, {
-        retailer,
-        store_id: store.store_id,
-        address_id: store.address_id,
-        title: child.title,
-        slug: child.slug,
-        path: childPath,
-      });
+      const record = enrichCategoryRecord(retailer, store, child, childPath, slugTitleMap);
+      state.queue.push({ path: childPath, title: child.title, slug: record.slug });
+      allCategories.set(`${retailer}:${childPath}`, record);
       newCategories += 1;
     }
 

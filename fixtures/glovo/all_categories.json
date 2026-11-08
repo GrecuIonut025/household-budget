@@ -1,0 +1,52 @@
+[
+  {
+    "retailer": "profi",
+    "store_id": "1",
+    "address_id": "1",
+    "title": "Lapte Zuzu",
+    "slug": "lapte-c.1",
+    "path": "/v4/stores/1/addresses/1/content/main?nodeType=DEEP_LINK&link=lactate-sc.1/lapte-c.1",
+    "parent_slug": "lactate-sc.1",
+    "parent_title": "Lactate"
+  },
+  {
+    "retailer": "profi",
+    "store_id": "1",
+    "address_id": "1",
+    "title": "Pâine",
+    "slug": "paine-c.2",
+    "path": "/v4/stores/1/addresses/1/content/main?nodeType=DEEP_LINK&link=brutarie-sc.2/paine-c.2",
+    "parent_slug": "brutarie-sc.2",
+    "parent_title": "Brutarie"
+  },
+  {
+    "retailer": "carrefour",
+    "store_id": "2",
+    "address_id": "2",
+    "title": "Lapte Zuzu",
+    "slug": "lapte-c.1",
+    "path": "/v4/stores/2/addresses/2/content/main?nodeType=DEEP_LINK&link=lactate-sc.1/lapte-c.1",
+    "parent_slug": "lactate-sc.1",
+    "parent_title": "Lactate"
+  },
+  {
+    "retailer": "kaufland",
+    "store_id": "3",
+    "address_id": "3",
+    "title": "Lapte Zuzu",
+    "slug": "lapte-c.1",
+    "path": "/v4/stores/3/addresses/3/content/main?nodeType=DEEP_LINK&link=lactate-sc.1/lapte-c.1",
+    "parent_slug": "lactate-sc.1",
+    "parent_title": "Lactate"
+  },
+  {
+    "retailer": "mega_image",
+    "store_id": "4",
+    "address_id": "4",
+    "title": "Lapte Zuzu",
+    "slug": "lapte-c.1",
+    "path": "/v4/stores/4/addresses/4/content/main?nodeType=DEEP_LINK&link=lactate-sc.1/lapte-c.1",
+    "parent_slug": "lactate-sc.1",
+    "parent_title": "Lactate"
+  }
+]
