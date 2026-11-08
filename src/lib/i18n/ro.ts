@@ -94,7 +94,10 @@ export const ro: Record<MessageKey, string> = {
   "auth.confirmFailed": "Linkul de confirmare este invalid sau a expirat.",
 
   "setup.title": "Conectează Supabase pentru a începe",
-  "setup.body": "Adaugă URL-ul proiectului Supabase și cheia anon în .env.local, aplică migrările, apoi repornește serverul de dezvoltare. Pașii exacți sunt în README.",
+  "setup.body": "Adaugă URL-ul proiectului Supabase și cheia anon în .env.local în rădăcina proiectului, apoi repornește complet serverul (stop + npm run dev).",
+  "setup.keyOk": "ok",
+  "setup.keyMissing": "lipsă sau goală",
+  "setup.checklist": "Verifică: fișierul se numește .env.local (nu .env.local.txt); fără spații lângă =; restart după modificări; encoding UTF-8 (nu „Unicode” din Notepad).",
 
   "onboarding.title": "Configurează gospodăria",
   "onboarding.subtitle": "Creează o gospodărie pentru familia ta sau alătură-te uneia printr-o invitație.",

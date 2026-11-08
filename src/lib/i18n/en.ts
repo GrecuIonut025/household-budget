@@ -93,7 +93,10 @@ export const en = {
   "auth.confirmFailed": "That confirmation link is invalid or has expired.",
 
   "setup.title": "Connect Supabase to get started",
-  "setup.body": "Add your Supabase project URL and anon key to .env.local, apply the migrations, then restart the dev server. See the README for the exact steps.",
+  "setup.body": "Add your Supabase project URL and anon key to .env.local in the project root, then fully restart the dev server (stop + npm run dev).",
+  "setup.keyOk": "seen",
+  "setup.keyMissing": "missing or empty",
+  "setup.checklist": "Checks: file must be named .env.local (not .env.local.txt); no spaces around =; restart after edits; UTF-8 encoding (not Notepad “Unicode”).",
 
   "onboarding.title": "Set up your household",
   "onboarding.subtitle": "Create a household for your family, or join one with an invite.",
