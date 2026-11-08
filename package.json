@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test:db": "bash scripts/db-test.sh",
     "check": "npm run typecheck && npm run lint && npm test",
-    "glovo:crawl": "bash scripts/glovo/crawl-brasov.sh",
+    "glovo:crawl": "node scripts/glovo/crawl.mjs",
     "glovo:import": "node scripts/glovo/import.mjs",
     "glovo:sync": "node scripts/glovo/sync.mjs",
     "glovo:env-test": "node scripts/glovo/load-env.test.mjs"
