@@ -1,77 +1,111 @@
 import Link from "next/link";
-import { Search, Store } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderOpen, Search, Store } from "lucide-react";
 import { Badge, Card, EmptyState, buttonClass } from "@/components/ui";
-import type { GlovoComparisonGroup, GlovoMarket, GlovoRetailerKey } from "@/lib/glovo/types";
+import type {
+  GlovoBrowsePage,
+  GlovoCategoryNode,
+  GlovoMarket,
+  GlovoRetailerKey,
+} from "@/lib/glovo/types";
 import { formatMoney, toMinor } from "@/lib/money";
 
 const RETAILER_ORDER: GlovoRetailerKey[] = ["profi", "carrefour", "kaufland", "mega_image"];
 
-export function GlovoBrasovSection({
+type Labels = {
+  title: string;
+  subtitle: string;
+  pickMarket: string;
+  categories: string;
+  subcategories: string;
+  products: string;
+  searchPlaceholder: string;
+  search: string;
+  allMarkets: string;
+  emptyTitle: string;
+  emptyBody: string;
+  outOfStock: string;
+  sourceNote: string;
+  back: string;
+  pageOf: string;
+  prev: string;
+  next: string;
+  items: string;
+  noProductsInCategory: string;
+};
+
+function href(parts: {
+  market?: GlovoRetailerKey | null;
+  cat?: string | null;
+  sub?: string | null;
+  q?: string;
+  page?: number;
+}): string {
+  const params = new URLSearchParams();
+  if (parts.market) params.set("market", parts.market);
+  if (parts.cat) params.set("cat", parts.cat);
+  if (parts.sub) params.set("sub", parts.sub);
+  if (parts.q?.trim()) params.set("q", parts.q.trim());
+  if (parts.page && parts.page > 1) params.set("page", String(parts.page));
+  const qs = params.toString();
+  return qs ? `/price-comparison?${qs}` : "/price-comparison";
+}
+
+export function GlovoBrasovBrowse({
   markets,
-  groups,
+  selectedMarket,
+  parents,
+  subcategories,
+  browse,
+  parentSlug,
+  categorySlug,
   query,
-  retailer,
   locale,
   labels,
 }: {
   markets: GlovoMarket[];
-  groups: GlovoComparisonGroup[];
+  selectedMarket: GlovoRetailerKey | null;
+  parents: GlovoCategoryNode[];
+  subcategories: GlovoCategoryNode[];
+  browse: GlovoBrowsePage | null;
+  parentSlug: string | null;
+  categorySlug: string | null;
   query: string;
-  retailer: GlovoRetailerKey | null;
   locale: string;
-  labels: {
-    title: string;
-    subtitle: string;
-    searchPlaceholder: string;
-    search: string;
-    allMarkets: string;
-    cheapest: string;
-    spread: string;
-    emptyTitle: string;
-    emptyBody: string;
-    outOfStock: string;
-    sourceNote: string;
-    results: string;
-  };
+  labels: Labels;
 }) {
-  const marketByKey = new Map(markets.map((m) => [m.retailer_key, m]));
-  const orderedMarkets = RETAILER_ORDER.map((key) => marketByKey.get(key)).filter(
+  const ordered = RETAILER_ORDER.map((key) => markets.find((m) => m.retailer_key === key)).filter(
     (m): m is GlovoMarket => Boolean(m),
   );
+  const activeMarket = selectedMarket
+    ? ordered.find((m) => m.retailer_key === selectedMarket) ?? null
+    : null;
+
+  const showCategories = Boolean(selectedMarket) && !query && !parentSlug && !categorySlug;
+  const showSubcategories =
+    Boolean(selectedMarket) && Boolean(parentSlug) && !categorySlug && !query && subcategories.length > 0;
+  const showProducts =
+    Boolean(selectedMarket) &&
+    (Boolean(query) ||
+      Boolean(categorySlug) ||
+      (Boolean(parentSlug) && subcategories.length === 0));
 
   return (
-    <section className="mb-8 space-y-4">
+    <section className="space-y-4">
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border bg-gradient-to-br from-[color:var(--card-purple)] via-[color:var(--surface)] to-[color:var(--card-blue)] p-4 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">
-              Glovo · Brașov
-            </p>
-            <h2 className="mt-1 text-lg font-bold tracking-tight text-fg sm:text-xl">
-              {labels.title}
-            </h2>
-            <p className="mt-1 max-w-2xl text-sm text-muted">{labels.subtitle}</p>
-          </div>
-          <Badge tone="brand">{labels.results}</Badge>
-        </div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">
+          Glovo · Brașov
+        </p>
+        <h1 className="mt-1 text-xl font-bold tracking-tight text-fg sm:text-2xl">{labels.title}</h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted">{labels.subtitle}</p>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {orderedMarkets.map((market) => {
-            const active = retailer === market.retailer_key;
-            const href = buildHref({
-              q: query,
-              market: active ? null : market.retailer_key,
-            });
+          {ordered.map((market) => {
+            const active = selectedMarket === market.retailer_key;
             return (
               <Link
                 key={market.id}
-                href={href}
+                href={href({ market: active ? null : market.retailer_key })}
                 className={buttonClass(active ? "primary" : "secondary")}
-                style={
-                  !active && market.brand_color
-                    ? { borderColor: `${market.brand_color}55` }
-                    : undefined
-                }
               >
                 <span
                   className="mr-1.5 inline-flex size-5 items-center justify-center rounded-md text-[10px] font-bold text-white"
@@ -84,131 +118,294 @@ export function GlovoBrasovSection({
               </Link>
             );
           })}
-          {retailer ? (
-            <Link href={buildHref({ q: query, market: null })} className={buttonClass("ghost")}>
-              {labels.allMarkets}
-            </Link>
-          ) : null}
         </div>
 
-        <form action="/price-comparison" method="get" className="mt-4 flex flex-col gap-2 sm:flex-row">
-          {retailer ? <input type="hidden" name="market" value={retailer} /> : null}
-          <label className="relative min-w-0 flex-1">
-            <span className="sr-only">{labels.search}</span>
-            <Search
-              size={16}
-              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted"
-            />
-            <input
-              type="search"
-              name="q"
-              defaultValue={query}
-              placeholder={labels.searchPlaceholder}
-              className="w-full rounded-[var(--radius-md)] border border-border bg-[color:var(--input-bg)] py-2.5 pr-3 pl-9 text-sm text-fg outline-none ring-brand/30 focus:ring-2"
-            />
-          </label>
-          <button type="submit" className={buttonClass("primary")}>
-            {labels.search}
-          </button>
-        </form>
+        {selectedMarket ? (
+          <form action="/price-comparison" method="get" className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <input type="hidden" name="market" value={selectedMarket} />
+            {parentSlug ? <input type="hidden" name="cat" value={parentSlug} /> : null}
+            {categorySlug ? <input type="hidden" name="sub" value={categorySlug} /> : null}
+            <label className="relative min-w-0 flex-1">
+              <span className="sr-only">{labels.search}</span>
+              <Search
+                size={16}
+                className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted"
+              />
+              <input
+                type="search"
+                name="q"
+                defaultValue={query}
+                placeholder={labels.searchPlaceholder}
+                className="w-full rounded-[var(--radius-md)] border border-border bg-[color:var(--input-bg)] py-2.5 pr-3 pl-9 text-sm text-fg outline-none ring-brand/30 focus:ring-2"
+              />
+            </label>
+            <button type="submit" className={buttonClass("primary")}>
+              {labels.search}
+            </button>
+          </form>
+        ) : (
+          <p className="mt-4 text-sm font-medium text-fg">{labels.pickMarket}</p>
+        )}
+
         <p className="mt-3 text-xs text-muted">{labels.sourceNote}</p>
       </div>
 
-      {groups.length === 0 ? (
+      {selectedMarket ? (
+        <nav className="flex flex-wrap items-center gap-2 text-sm">
+          <Link href="/price-comparison" className="text-brand hover:underline">
+            {labels.allMarkets}
+          </Link>
+          {activeMarket ? (
+            <>
+              <span className="text-muted">/</span>
+              <Link
+                href={href({ market: selectedMarket })}
+                className={!parentSlug && !query ? "font-semibold text-fg" : "text-brand hover:underline"}
+              >
+                {activeMarket.name}
+              </Link>
+            </>
+          ) : null}
+          {parentSlug ? (
+            <>
+              <span className="text-muted">/</span>
+              <Link
+                href={href({ market: selectedMarket, cat: parentSlug })}
+                className={!categorySlug && !query ? "font-semibold text-fg" : "text-brand hover:underline"}
+              >
+                {parents.find((p) => p.slug === parentSlug)?.title || parentSlug}
+              </Link>
+            </>
+          ) : null}
+          {categorySlug ? (
+            <>
+              <span className="text-muted">/</span>
+              <span className="font-semibold text-fg">
+                {subcategories.find((c) => c.slug === categorySlug)?.title || categorySlug}
+              </span>
+            </>
+          ) : null}
+        </nav>
+      ) : null}
+
+      {!selectedMarket ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {ordered.map((market) => (
+            <Link key={market.id} href={href({ market: market.retailer_key })} className="block">
+              <Card className="transition hover:border-brand/40">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="inline-flex size-12 items-center justify-center rounded-2xl text-lg font-bold text-white"
+                    style={{ backgroundColor: market.brand_color ?? "var(--brand)" }}
+                  >
+                    {market.logo_emoji ?? market.name.slice(0, 1)}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-fg">{market.name}</p>
+                    <p className="text-xs text-muted">Brașov · Glovo</p>
+                  </div>
+                </div>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      {showCategories ? (
+        <CategoryGrid
+          title={labels.categories}
+          nodes={parents}
+          hrefFor={(node) => href({ market: selectedMarket, cat: node.slug })}
+          empty={labels.noProductsInCategory}
+        />
+      ) : null}
+
+      {showSubcategories ? (
+        <CategoryGrid
+          title={labels.subcategories}
+          nodes={subcategories}
+          hrefFor={(node) =>
+            href({ market: selectedMarket, cat: parentSlug, sub: node.slug })
+          }
+          empty={labels.noProductsInCategory}
+          backHref={href({ market: selectedMarket })}
+          backLabel={labels.back}
+        />
+      ) : null}
+
+      {showProducts && browse ? (
+        <ProductGrid
+          title={labels.products}
+          browse={browse}
+          locale={locale}
+          labels={labels}
+          buildPageHref={(page) =>
+            href({
+              market: selectedMarket,
+              cat: parentSlug,
+              sub: categorySlug,
+              q: query,
+              page,
+            })
+          }
+        />
+      ) : null}
+
+      {selectedMarket && !showCategories && !showSubcategories && !showProducts ? (
         <EmptyState
           icon={<Store size={28} />}
           title={labels.emptyTitle}
           body={labels.emptyBody}
         />
-      ) : (
-        <div className="grid gap-3">
-          {groups.map((group) => (
-            <Card key={group.key} className="!p-0 overflow-hidden">
-              <div className="flex flex-col sm:flex-row">
-                <div className="flex items-center gap-3 border-b border-border p-4 sm:w-64 sm:shrink-0 sm:border-r sm:border-b-0">
-                  <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-2">
-                    {group.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={group.imageUrl}
-                        alt=""
-                        className="size-full object-cover"
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <Store size={22} className="text-muted" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="line-clamp-2 text-sm font-semibold text-fg sm:text-base">
-                      {group.name}
-                    </h3>
-                    {group.category ? (
-                      <p className="mt-0.5 text-xs text-muted">{group.category}</p>
-                    ) : null}
-                  </div>
-                </div>
-
-                <ul className="min-w-0 flex-1 divide-y divide-border">
-                  {group.quotes.map((quote) => {
-                    const cheapest = group.cheapestRetailerKey === quote.retailerKey;
-                    return (
-                      <li
-                        key={`${group.key}-${quote.retailerKey}-${quote.productId}`}
-                        className="flex flex-wrap items-center gap-2 px-4 py-3 text-sm"
-                      >
-                        <span
-                          className="inline-flex size-7 items-center justify-center rounded-lg text-[11px] font-bold text-white"
-                          style={{ backgroundColor: quote.brandColor ?? "var(--brand)" }}
-                          aria-hidden
-                        >
-                          {quote.logoEmoji ?? quote.marketName.slice(0, 1)}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="font-medium">{quote.marketName}</span>
-                          <span className="mt-0.5 flex flex-wrap gap-1">
-                            {cheapest ? <Badge tone="ok">{labels.cheapest}</Badge> : null}
-                            {quote.outOfStock ? (
-                              <Badge tone="warn">{labels.outOfStock}</Badge>
-                            ) : null}
-                          </span>
-                        </span>
-                        <span
-                          className={`tabular text-base font-semibold ${cheapest ? "text-ok" : "text-fg"}`}
-                        >
-                          {quote.priceDisplay ??
-                            formatMoney(toMinor(quote.price), quote.currency, locale)}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-              {group.spread != null ? (
-                <p className="border-t border-border px-4 py-2 text-xs text-muted">
-                  {labels.spread}:{" "}
-                  {formatMoney(toMinor(group.spread), group.quotes[0]?.currency ?? "RON", locale)}
-                </p>
-              ) : null}
-            </Card>
-          ))}
-        </div>
-      )}
+      ) : null}
     </section>
   );
 }
 
-function buildHref({
-  q,
-  market,
+function CategoryGrid({
+  title,
+  nodes,
+  hrefFor,
+  empty,
+  backHref,
+  backLabel,
 }: {
-  q: string;
-  market: GlovoRetailerKey | null;
-}): string {
-  const params = new URLSearchParams();
-  if (q.trim()) params.set("q", q.trim());
-  if (market) params.set("market", market);
-  const qs = params.toString();
-  return qs ? `/price-comparison?${qs}` : "/price-comparison";
+  title: string;
+  nodes: GlovoCategoryNode[];
+  hrefFor: (node: GlovoCategoryNode) => string;
+  empty: string;
+  backHref?: string;
+  backLabel?: string;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-base font-semibold text-fg">{title}</h2>
+        {backHref && backLabel ? (
+          <Link href={backHref} className={`${buttonClass("ghost")} inline-flex items-center gap-1`}>
+            <ChevronLeft size={16} />
+            {backLabel}
+          </Link>
+        ) : null}
+      </div>
+      {nodes.length === 0 ? (
+        <EmptyState icon={<FolderOpen size={28} />} title={empty} body="" />
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {nodes.map((node) => (
+            <Link key={node.slug} href={hrefFor(node)} className="block">
+              <Card className="h-full transition hover:border-brand/40">
+                <p className="font-medium text-fg">{node.title}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {node.child_count > 0
+                    ? `${node.child_count} · ${node.product_count}`
+                    : `${node.product_count}`}
+                </p>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductGrid({
+  title,
+  browse,
+  locale,
+  labels,
+  buildPageHref,
+}: {
+  title: string;
+  browse: GlovoBrowsePage;
+  locale: string;
+  labels: Labels;
+  buildPageHref: (page: number) => string;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <h2 className="text-base font-semibold text-fg">{title}</h2>
+        <Badge tone="brand">
+          {labels.items.replace("{count}", String(browse.total))}
+        </Badge>
+      </div>
+      {browse.items.length === 0 ? (
+        <EmptyState icon={<Store size={28} />} title={labels.noProductsInCategory} body="" />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {browse.items.map((product) => (
+            <Card key={product.id} className="!p-3">
+              <div className="flex gap-3">
+                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-2">
+                  {product.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={product.image_url}
+                      alt=""
+                      className="size-full object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <Store size={20} className="text-muted" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 text-sm font-semibold text-fg">{product.name}</p>
+                  {product.category ? (
+                    <p className="mt-0.5 text-xs text-muted">{product.category}</p>
+                  ) : null}
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="tabular text-base font-bold text-fg">
+                      {product.price_display ??
+                        formatMoney(
+                          toMinor(product.price ?? 0),
+                          product.currency || "RON",
+                          locale,
+                        )}
+                    </span>
+                    {product.out_of_stock ? (
+                      <Badge tone="warn">{labels.outOfStock}</Badge>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {browse.totalPages > 1 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+          <p className="text-xs text-muted">
+            {labels.pageOf
+              .replace("{page}", String(browse.page))
+              .replace("{pages}", String(browse.totalPages))}
+          </p>
+          <div className="flex gap-2">
+            {browse.page > 1 ? (
+              <Link
+                href={buildPageHref(browse.page - 1)}
+                className={`${buttonClass("secondary")} inline-flex items-center gap-1`}
+              >
+                <ChevronLeft size={16} />
+                {labels.prev}
+              </Link>
+            ) : null}
+            {browse.page < browse.totalPages ? (
+              <Link
+                href={buildPageHref(browse.page + 1)}
+                className={`${buttonClass("secondary")} inline-flex items-center gap-1`}
+              >
+                {labels.next}
+                <ChevronRight size={16} />
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }

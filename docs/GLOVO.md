@@ -1,26 +1,27 @@
 # Glovo Brașov → Comparare prețuri
 
-## One command (Windows / macOS / Linux)
+## One command
 
 ```bash
 npm run glovo:sync
 ```
 
-Uses pure **Node** (`scripts/glovo/crawl.mjs`) — no Python, no Git Bash crawl script, no `.env.local` headers required (defaults baked in). Writes `glovo_data/all_products.json`; Comparare prețuri reads that file.
+Pure **Node** crawler (`scripts/glovo/crawl.mjs`) — no Python. Writes `glovo_data/`.
+Comparare prețuri: **market → categories → subcategories → products** (paginated).
 
-Session expired later? Paste fresh headers into `.env.local` (optional overrides) and re-run.
+## UI flow
+
+1. Pick Profi / Carrefour / Kaufland / Mega Image
+2. Browse categories (and subcategories from crawl hierarchy)
+3. Open products with images + prices; search within the market
+4. Empty state: run `npm run glovo:sync` once
 
 ## Scripts
 
 | Command | What |
 | --- | --- |
-| `npm run glovo:sync` | Crawl (default) → `glovo_data/`; optional Supabase import |
+| `npm run glovo:sync` | Crawl (default) → `glovo_data/` |
 | `npm run glovo:crawl` | Crawl only |
-| `npm run glovo:import` | Optional DB upsert (needs service role) |
 | `GLOVO_CRAWL=false npm run glovo:sync` | Skip crawl |
 
-Legacy bash+Python script remains at `scripts/glovo/crawl-brasov.sh` but is not used by npm scripts.
-
-## Stores
-
-Profi, Carrefour, Kaufland, Mega Image — Brașov (`brv`) only.
+Session headers are baked into the crawler; override in `.env.local` only when expired.

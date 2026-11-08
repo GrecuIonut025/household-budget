@@ -332,7 +332,7 @@ export const ro: Record<MessageKey, string> = {
 
   "placeholder.title": "În curând",
   "placeholder.products": "Catalogul de produse al gospodăriei, cu coduri de bare și statistici de achiziție, va fi aici.",
-  "placeholder.priceComparison": "Compară prețurile la Lidl, Kaufland, Carrefour, Auchan, Penny, Profi și Mega Image.",
+  "placeholder.priceComparison": "Răsfoiește cataloagele Glovo Brașov — Profi, Carrefour, Kaufland și Mega Image.",
   "placeholder.recipes": "Salvează rețete și transformă ingredientele în liste de cumpărături.",
   "placeholder.mealPlanner": "Planifică mesele săptămânii și vezi cât costă.",
   "placeholder.shoppingLists": "Planifică cumpărăturile, rezervă buget pentru ele și bifează produsele în magazin.",

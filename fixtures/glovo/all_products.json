@@ -12,9 +12,14 @@
     "price_display": "6,49 lei",
     "image_url": null,
     "image_id": null,
-    "category": "Lactate",
+    "category": "Lapte Zuzu",
     "out_of_stock": false,
-    "eans": ["5941001500123"]
+    "eans": [
+      "5941001500123"
+    ],
+    "category_slug": "lapte-c.1",
+    "parent_category": "Lactate",
+    "parent_category_slug": "lactate-sc.1"
   },
   {
     "retailer": "carrefour",
@@ -26,9 +31,14 @@
     "price": 6.89,
     "currency": "RON",
     "price_display": "6,89 lei",
-    "category": "Lactate",
+    "category": "Lapte Zuzu",
     "out_of_stock": false,
-    "eans": ["5941001500123"]
+    "eans": [
+      "5941001500123"
+    ],
+    "category_slug": "lapte-c.1",
+    "parent_category": "Lactate",
+    "parent_category_slug": "lactate-sc.1"
   },
   {
     "retailer": "kaufland",
@@ -40,9 +50,14 @@
     "price": 6.29,
     "currency": "RON",
     "price_display": "6,29 lei",
-    "category": "Lactate",
+    "category": "Lapte Zuzu",
     "out_of_stock": false,
-    "eans": ["5941001500123"]
+    "eans": [
+      "5941001500123"
+    ],
+    "category_slug": "lapte-c.1",
+    "parent_category": "Lactate",
+    "parent_category_slug": "lactate-sc.1"
   },
   {
     "retailer": "mega_image",
@@ -54,9 +69,14 @@
     "price": 7.19,
     "currency": "RON",
     "price_display": "7,19 lei",
-    "category": "Lactate",
+    "category": "Lapte Zuzu",
     "out_of_stock": false,
-    "eans": ["5941001500123"]
+    "eans": [
+      "5941001500123"
+    ],
+    "category_slug": "lapte-c.1",
+    "parent_category": "Lactate",
+    "parent_category_slug": "lactate-sc.1"
   },
   {
     "retailer": "profi",
@@ -65,9 +85,12 @@
     "price": 4.29,
     "currency": "RON",
     "price_display": "4,29 lei",
-    "category": "Panificație",
+    "category": "Pâine",
     "out_of_stock": false,
-    "eans": []
+    "eans": [],
+    "category_slug": "paine-c.2",
+    "parent_category": "Brutarie",
+    "parent_category_slug": "brutarie-sc.2"
   },
   {
     "retailer": "carrefour",
@@ -76,9 +99,12 @@
     "price": 3.99,
     "currency": "RON",
     "price_display": "3,99 lei",
-    "category": "Panificație",
+    "category": "Pâine",
     "out_of_stock": false,
-    "eans": []
+    "eans": [],
+    "category_slug": "paine-c.2",
+    "parent_category": "Brutarie",
+    "parent_category_slug": "brutarie-sc.2"
   },
   {
     "retailer": "kaufland",
@@ -87,9 +113,12 @@
     "price": 4.49,
     "currency": "RON",
     "price_display": "4,49 lei",
-    "category": "Panificație",
+    "category": "Pâine",
     "out_of_stock": false,
-    "eans": []
+    "eans": [],
+    "category_slug": "paine-c.2",
+    "parent_category": "Brutarie",
+    "parent_category_slug": "brutarie-sc.2"
   },
   {
     "retailer": "mega_image",
@@ -98,8 +127,11 @@
     "price": 4.79,
     "currency": "RON",
     "price_display": "4,79 lei",
-    "category": "Panificație",
+    "category": "Pâine",
     "out_of_stock": false,
-    "eans": []
+    "eans": [],
+    "category_slug": "paine-c.2",
+    "parent_category": "Brutarie",
+    "parent_category_slug": "brutarie-sc.2"
   }
 ]

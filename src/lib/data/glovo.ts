@@ -1,22 +1,22 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
 import {
-  filterLocalProducts,
+  browseLocalProducts,
+  GLOVO_PAGE_SIZE,
+  listParentCategories,
+  listSubcategories,
   loadLocalGlovoCatalog,
   staticGlovoMarkets,
 } from "@/lib/glovo/local-catalog";
-import type { GlovoMarket, GlovoProduct, GlovoRetailerKey } from "@/lib/glovo/types";
+import type {
+  GlovoBrowsePage,
+  GlovoCategoryNode,
+  GlovoMarket,
+  GlovoProduct,
+  GlovoRetailerKey,
+} from "@/lib/glovo/types";
 
-const MARKET_COLS =
-  "id, retailer_key, store_slug, name, city, city_code, brand_color, logo_emoji, is_active, last_synced_at";
-const PRODUCT_COLS =
-  "id, market_id, retailer_key, identity_key, glovo_product_id, name, description, price, currency, price_display, image_url, image_id, category, eans, out_of_stock, observed_at";
+export { GLOVO_PAGE_SIZE };
 
-/**
- * Prefer local crawl / fixture JSON (`glovo_data/all_products.json`) so Comparare
- * prețuri works without SUPABASE_SERVICE_ROLE_KEY. Fall back to Supabase when
- * no local catalog is present.
- */
 export async function listGlovoMarkets(): Promise<GlovoMarket[]> {
   const local = loadLocalGlovoCatalog();
   if (local && local.products.length > 0) {
@@ -25,97 +25,54 @@ export async function listGlovoMarkets(): Promise<GlovoMarket[]> {
       last_synced_at: new Date().toISOString(),
     }));
   }
-
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("glovo_markets")
-      .select(MARKET_COLS)
-      .eq("is_active", true)
-      .order("name");
-    if (error) throw error;
-    if (data && data.length > 0) return data as GlovoMarket[];
-  } catch {
-    // Fall through to static Brașov market list.
-  }
   return staticGlovoMarkets();
 }
 
-export async function searchGlovoProducts(opts: {
-  query?: string;
-  retailer?: GlovoRetailerKey | null;
-  limit?: number;
-}): Promise<GlovoProduct[]> {
+export async function getGlovoBrowseContext(retailer: GlovoRetailerKey): Promise<{
+  products: GlovoProduct[];
+  parents: GlovoCategoryNode[];
+  catalogPath: string | null;
+  hasData: boolean;
+}> {
   const local = loadLocalGlovoCatalog();
-  if (local && local.products.length > 0) {
-    return filterLocalProducts(local.products, opts);
+  if (!local || local.products.length === 0) {
+    return { products: [], parents: [], catalogPath: null, hasData: false };
   }
-
-  const supabase = await createClient();
-  const limit = Math.min(Math.max(opts.limit ?? 120, 1), 400);
-  let q = supabase
-    .from("glovo_products")
-    .select(PRODUCT_COLS)
-    .not("price", "is", null)
-    .order("name")
-    .limit(limit);
-
-  if (opts.retailer) {
-    q = q.eq("retailer_key", opts.retailer);
-  }
-
-  const query = opts.query?.trim();
-  if (query) {
-    // ilike on name/category; EAN exact-ish via contains when numeric.
-    if (/^\d{8,14}$/.test(query)) {
-      q = q.contains("eans", [query]);
-    } else {
-      q = q.or(`name.ilike.%${query}%,category.ilike.%${query}%`);
-    }
-  }
-
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data ?? []).map((row) => ({
-    ...(row as GlovoProduct),
-    eans: Array.isArray(row.eans) ? row.eans : [],
-    price: row.price == null ? null : Number(row.price),
-  }));
+  const products = local.products.filter((p) => p.retailer_key === retailer);
+  const parents = listParentCategories(retailer, local.products, local.categories);
+  return {
+    products,
+    parents,
+    catalogPath: local.path,
+    hasData: products.some((p) => p.price != null),
+  };
 }
 
-/** When the search query is empty, pull a balanced sample across markets for the landing view. */
-export async function listGlovoCatalogSample(limitPerMarket = 40): Promise<GlovoProduct[]> {
+export async function listGlovoSubcategories(
+  retailer: GlovoRetailerKey,
+  parentSlug: string,
+): Promise<GlovoCategoryNode[]> {
   const local = loadLocalGlovoCatalog();
-  if (local && local.products.length > 0) {
-    const byRetailer = new Map<GlovoRetailerKey, GlovoProduct[]>();
-    for (const p of filterLocalProducts(local.products, { limit: 800 })) {
-      const bucket = byRetailer.get(p.retailer_key) ?? [];
-      if (bucket.length < limitPerMarket) {
-        bucket.push(p);
-        byRetailer.set(p.retailer_key, bucket);
-      }
-    }
-    return [...byRetailer.values()].flat();
-  }
+  if (!local) return [];
+  return listSubcategories(retailer, parentSlug, local.products, local.categories);
+}
 
-  const markets = await listGlovoMarkets();
-  const chunks = await Promise.all(
-    markets.map(async (market) => {
-      const supabase = await createClient();
-      const { data, error } = await supabase
-        .from("glovo_products")
-        .select(PRODUCT_COLS)
-        .eq("retailer_key", market.retailer_key)
-        .not("price", "is", null)
-        .order("name")
-        .limit(limitPerMarket);
-      if (error) throw error;
-      return (data ?? []).map((row) => ({
-        ...(row as GlovoProduct),
-        eans: Array.isArray(row.eans) ? row.eans : [],
-        price: row.price == null ? null : Number(row.price),
-      }));
-    }),
-  );
-  return chunks.flat();
+export async function browseGlovoProducts(opts: {
+  retailer: GlovoRetailerKey;
+  parentSlug?: string | null;
+  categorySlug?: string | null;
+  query?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<GlovoBrowsePage> {
+  const local = loadLocalGlovoCatalog();
+  if (!local) {
+    return { items: [], total: 0, page: 1, pageSize: opts.pageSize ?? GLOVO_PAGE_SIZE, totalPages: 1 };
+  }
+  return browseLocalProducts(local.products, opts);
+}
+
+export async function hasGlovoCatalog(): Promise<boolean> {
+  const local = loadLocalGlovoCatalog();
+  return Boolean(local && local.products.some((p) => p.price != null));
 }
