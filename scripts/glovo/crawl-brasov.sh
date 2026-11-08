@@ -16,6 +16,12 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
+# Load `.env.local` / `.env` into this shell (Next.js-like). Skip if node missing.
+if command -v node >/dev/null 2>&1; then
+  # shellcheck disable=SC1090
+  eval "$(node "$ROOT/scripts/glovo/env-exports.mjs")"
+fi
+
 BASE_URL="${GLOVO_BASE_URL:-https://api.glovoapp.com}"
 
 CITY_CODE="${GLOVO_CITY_CODE:-brv}"
