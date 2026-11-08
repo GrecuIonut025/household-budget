@@ -42,6 +42,8 @@ export type GlovoCategoryNode = {
   retailer_key: GlovoRetailerKey;
   product_count: number;
   child_count: number;
+  /** First in-stock product image for Glovo-style tiles. */
+  image_url: string | null;
 };
 
 export type GlovoBrowsePage = {

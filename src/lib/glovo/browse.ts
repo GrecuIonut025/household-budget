@@ -48,6 +48,7 @@ export function listParentCategories(
           retailer_key: retailer,
           product_count: 0,
           child_count: 0,
+          image_url: null,
         });
       }
     } else if (cat.slug) {
@@ -59,6 +60,7 @@ export function listParentCategories(
           retailer_key: retailer,
           product_count: 0,
           child_count: 0,
+          image_url: null,
         });
       }
     }
@@ -69,8 +71,10 @@ export function listParentCategories(
     const parentSlug = product.parent_category_slug || product.category_slug;
     if (!parentSlug) continue;
     const node = parents.get(parentSlug);
-    if (node) node.product_count += 1;
-    else {
+    if (node) {
+      node.product_count += 1;
+      if (!node.image_url && product.image_url) node.image_url = product.image_url;
+    } else {
       parents.set(parentSlug, {
         slug: parentSlug,
         title: product.parent_category || product.category || titleFromSlug(parentSlug),
@@ -78,6 +82,7 @@ export function listParentCategories(
         retailer_key: retailer,
         product_count: 1,
         child_count: 0,
+        image_url: product.image_url,
       });
     }
   }
@@ -107,6 +112,7 @@ export function listSubcategories(
       retailer_key: retailer,
       product_count: 0,
       child_count: 0,
+      image_url: null,
     });
   }
   for (const product of products) {
@@ -115,8 +121,10 @@ export function listSubcategories(
     const slug = product.category_slug;
     if (!slug) continue;
     const node = nodes.get(slug);
-    if (node) node.product_count += 1;
-    else {
+    if (node) {
+      node.product_count += 1;
+      if (!node.image_url && product.image_url) node.image_url = product.image_url;
+    } else {
       nodes.set(slug, {
         slug,
         title: product.category || titleFromSlug(slug),
@@ -124,6 +132,7 @@ export function listSubcategories(
         retailer_key: retailer,
         product_count: 1,
         child_count: 0,
+        image_url: product.image_url,
       });
     }
   }
