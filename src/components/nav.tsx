@@ -73,7 +73,7 @@ export function BottomNav() {
     <>
       <nav
         aria-label={t("nav.primary")}
-        className="safe-bottom fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-surface/95 backdrop-blur md:hidden"
+        className="safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface/95 backdrop-blur md:hidden"
       >
         {primary.map((item) => {
           const active = isActive(pathname, item.href);
@@ -93,8 +93,9 @@ export function BottomNav() {
         <button
           type="button"
           onClick={() => setMoreOpen(true)}
-          className={tab(secondaryActive)}
+          className={clsx(tab(secondaryActive), "relative z-10 touch-manipulation")}
           aria-haspopup="dialog"
+          aria-expanded={moreOpen}
         >
           <Ellipsis size={22} aria-hidden />
           <span>{t("nav.more")}</span>

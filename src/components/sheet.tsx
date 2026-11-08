@@ -1,10 +1,15 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n/provider";
 
-/** Bottom sheet on mobile, centred dialog on larger screens, built on the native <dialog>. */
+/**
+ * Bottom sheet on mobile, centred dialog on larger screens.
+ * Portaled to document.body with position:fixed so ancestors with
+ * transform/filter/backdrop-filter (sticky blurred chrome) cannot trap it.
+ */
 export function Sheet({
   open,
   onClose,
@@ -16,29 +21,53 @@ export function Sheet({
   title: string;
   children: ReactNode;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
   const { t } = useI18n();
+  const titleId = useId();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
+    setMounted(true);
+  }, []);
 
-  return (
-    <dialog
-      ref={ref}
-      onClose={onClose}
-      onClick={(e) => {
-        if (e.target === ref.current) onClose();
-      }}
-      className="m-0 mt-auto max-h-[92dvh] w-full max-w-none overflow-y-auto rounded-t-3xl border border-border bg-surface p-0 text-fg shadow-xl sm:m-auto sm:max-w-lg sm:rounded-[var(--radius-lg)]"
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
+  if (!mounted || !open) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex items-end justify-center sm:items-center sm:p-4"
+      role="presentation"
     >
-      {open ? (
-        <div className="p-5 pb-8 sm:pb-5">
+      <button
+        type="button"
+        aria-label={t("common.close")}
+        className="absolute inset-0 bg-black/60"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative z-10 flex max-h-[min(92dvh,100%)] w-full max-w-none flex-col overflow-hidden rounded-t-3xl border border-border bg-surface text-fg shadow-xl sm:max-w-lg sm:rounded-[var(--radius-lg)]"
+        style={{ paddingBottom: "max(0px, env(safe-area-inset-bottom))" }}
+      >
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 pb-8 sm:pb-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+            <h2 id={titleId} className="text-base font-semibold tracking-tight">
+              {title}
+            </h2>
             <button
               type="button"
               onClick={onClose}
@@ -50,7 +79,8 @@ export function Sheet({
           </div>
           {children}
         </div>
-      ) : null}
-    </dialog>
+      </div>
+    </div>,
+    document.body,
   );
 }

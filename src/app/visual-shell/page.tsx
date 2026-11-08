@@ -24,6 +24,8 @@ import { QuickLists } from "@/components/dashboard/quick-lists";
 import { RecentPurchases } from "@/components/dashboard/recent-purchases";
 import { RecipePromo } from "@/components/dashboard/recipe-promo";
 import { SummaryCard } from "@/components/dashboard/summary-card";
+import { BottomNav } from "@/components/nav";
+import { NotificationsBell } from "@/components/notifications/bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { buildEvolutionSeries } from "@/lib/dashboard-charts";
 import { BudgetEvolutionChart } from "@/components/dashboard/budget-evolution-chart";
@@ -80,11 +82,23 @@ export default function VisualShellPage() {
             );
           })}
         </nav>
-        <ThemeToggle variant="pill" />
+        <div className="mt-auto flex flex-col gap-3 px-1 pb-1">
+          <ThemeToggle variant="pill" />
+          <div className="flex items-center justify-center gap-1">
+            <NotificationsBell items={[]} unreadCount={2} compact />
+          </div>
+        </div>
       </aside>
 
       <div className="min-w-0 bg-bg">
-        <header className="sticky top-0 z-20 border-b border-border/70 bg-bg/90 px-4 py-3 backdrop-blur md:px-7">
+        <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-border/70 bg-bg/90 px-4 py-2.5 backdrop-blur md:hidden">
+          <p className="min-w-0 flex-1 truncate text-sm font-bold">Bugetify</p>
+          <div className="relative z-10 flex shrink-0 items-center gap-1 pointer-events-auto">
+            <NotificationsBell items={[]} unreadCount={2} />
+            <ThemeToggle compact />
+          </div>
+        </header>
+        <header className="sticky top-0 z-20 hidden border-b border-border/70 bg-bg/90 px-4 py-3 backdrop-blur md:block md:px-7">
           <div className="mx-auto flex w-full max-w-[1400px] items-center gap-3">
             <div className="relative hidden min-w-0 flex-1 md:block">
               <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
@@ -184,6 +198,7 @@ export default function VisualShellPage() {
           </p>
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 }
