@@ -234,6 +234,15 @@ export function loadLocalGlovoCatalog(): CatalogPayload | null {
       retailer_key: retailer,
       identity_key: identity,
       glovo_product_id: row.product_id != null ? String(row.product_id) : null,
+      glovo_store_id: row.store_id != null ? String(row.store_id) : null,
+      glovo_address_id: row.address_id != null ? String(row.address_id) : null,
+      store_product_id:
+        row.store_product_id != null
+          ? String(row.store_product_id)
+          : row.external_id != null
+            ? String(row.external_id)
+            : null,
+      external_id: row.external_id != null ? String(row.external_id) : null,
       name,
       description: row.description != null ? String(row.description) : null,
       price: Number.isFinite(price) ? price : null,

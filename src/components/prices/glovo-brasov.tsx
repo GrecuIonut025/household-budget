@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, FolderOpen, Plus, Search, Store } from "lucide-react";
+import { ChevronLeft, ChevronRight, FolderOpen, Minus, Plus, Search, Store } from "lucide-react";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { GlovoOrderBar, useGlovoCart } from "@/components/prices/glovo-order-bar";
 import { Badge, Card, EmptyState, buttonClass } from "@/components/ui";
@@ -419,6 +419,7 @@ export function GlovoBrasovBrowse({ locale, labels }: { locale: string; labels: 
           browse={browse}
           locale={locale}
           labels={labels}
+          qtyById={cart.qtyById}
           onAdd={(product) => {
             const storeSlug =
               ordered.find((m) => m.retailer_key === product.retailer_key)?.store_slug ?? "";
@@ -432,13 +433,18 @@ export function GlovoBrasovBrowse({ locale, labels }: { locale: string; labels: 
               retailer: product.retailer_key,
               storeSlug,
               glovoProductId: product.glovo_product_id,
+              storeProductId: product.store_product_id,
+              glovoStoreId: product.glovo_store_id,
+              glovoAddressId: product.glovo_address_id,
             });
           }}
+          onSetQty={cart.setQty}
           onPage={(nextPage) => startTransition(() => setPage(nextPage))}
         />
       ) : null}
 
-      <div className={cart.totalQty > 0 ? "h-20" : undefined} aria-hidden />
+      {/* Room for sticky CTA above mobile bottom nav */}
+      <div className={cart.totalQty > 0 ? "h-28 md:h-20" : undefined} aria-hidden />
       <GlovoOrderBar
         lines={cart.lines}
         totalQty={cart.totalQty}
@@ -552,14 +558,18 @@ function ProductGrid({
   browse,
   locale,
   labels,
+  qtyById,
   onAdd,
+  onSetQty,
   onPage,
 }: {
   title: string;
   browse: GlovoBrowsePage;
   locale: string;
   labels: Labels;
+  qtyById: Record<string, number>;
   onAdd: (product: GlovoProduct) => void;
+  onSetQty: (id: string, qty: number) => void;
   onPage: (page: number) => void;
 }) {
   return (
@@ -574,56 +584,18 @@ function ProductGrid({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {browse.items.map((product, index) => {
             const tone = TILE_TONES[index % TILE_TONES.length]!;
+            const qty = qtyById[product.id] ?? 0;
             return (
-              <article
+              <ProductTile
                 key={product.id}
-                className="overflow-hidden rounded-[1.25rem] border border-border bg-surface shadow-sm"
-              >
-                <div className={`relative flex aspect-square items-center justify-center ${tone}`}>
-                  {product.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={product.image_url}
-                      alt=""
-                      className="size-[82%] object-contain drop-shadow-sm"
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <Store size={28} className="text-black/30" aria-hidden />
-                  )}
-                  {product.out_of_stock ? (
-                    <span className="absolute top-2 left-2">
-                      <Badge tone="warn">{labels.outOfStock}</Badge>
-                    </span>
-                  ) : null}
-                </div>
-                <div className="space-y-2 p-2.5 sm:p-3">
-                  <p className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-fg">
-                    {product.name}
-                  </p>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="tabular text-base font-bold text-fg">
-                      {product.price_display ??
-                        formatMoney(
-                          toMinor(product.price ?? 0),
-                          product.currency || "RON",
-                          locale,
-                        )}
-                    </p>
-                    <button
-                      type="button"
-                      disabled={product.out_of_stock}
-                      onClick={() => onAdd(product)}
-                      className={`${buttonClass("primary")} !min-h-9 !rounded-full !px-2.5 touch-manipulation disabled:opacity-40`}
-                      aria-label={labels.addToCart}
-                    >
-                      <Plus size={16} aria-hidden />
-                    </button>
-                  </div>
-                </div>
-              </article>
+                product={product}
+                tone={tone}
+                locale={locale}
+                labels={labels}
+                qty={qty}
+                onAdd={() => onAdd(product)}
+                onSetQty={(next) => onSetQty(product.id, next)}
+              />
             );
           })}
         </div>
@@ -661,5 +633,113 @@ function ProductGrid({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ProductTile({
+  product,
+  tone,
+  locale,
+  labels,
+  qty,
+  onAdd,
+  onSetQty,
+}: {
+  product: GlovoProduct;
+  tone: string;
+  locale: string;
+  labels: Labels;
+  qty: number;
+  onAdd: () => void;
+  onSetQty: (qty: number) => void;
+}) {
+  const [pop, setPop] = useState(false);
+
+  useEffect(() => {
+    if (qty <= 0) return;
+    setPop(true);
+    const t = window.setTimeout(() => setPop(false), 320);
+    return () => window.clearTimeout(t);
+  }, [qty]);
+
+  return (
+    <article className="overflow-hidden rounded-[1.25rem] border border-border bg-surface shadow-sm">
+      <div className={`relative flex aspect-square items-center justify-center ${tone}`}>
+        {product.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={product.image_url}
+            alt=""
+            className="size-[82%] object-contain drop-shadow-sm"
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <Store size={28} className="text-black/30" aria-hidden />
+        )}
+        {product.out_of_stock ? (
+          <span className="absolute top-2 left-2">
+            <Badge tone="warn">{labels.outOfStock}</Badge>
+          </span>
+        ) : null}
+        {qty > 0 ? (
+          <span
+            className={`absolute top-2 right-2 grid min-w-7 place-items-center rounded-full bg-brand px-1.5 py-0.5 text-xs font-bold text-brand-fg shadow ${
+              pop ? "glovo-qty-pop" : ""
+            }`}
+            aria-label={`${qty}`}
+          >
+            {qty}
+          </span>
+        ) : null}
+      </div>
+      <div className="space-y-2 p-2.5 sm:p-3">
+        <p className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-fg">
+          {product.name}
+        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="tabular text-base font-bold text-fg">
+            {product.price_display ??
+              formatMoney(toMinor(product.price ?? 0), product.currency || "RON", locale)}
+          </p>
+          {qty > 0 ? (
+            <div className="inline-flex items-center gap-1 rounded-full border border-border bg-surface-2 p-0.5">
+              <button
+                type="button"
+                onClick={() => onSetQty(qty - 1)}
+                className={`${buttonClass("ghost")} !min-h-9 !min-w-9 !rounded-full !px-0 touch-manipulation`}
+                aria-label="−"
+              >
+                <Minus size={16} aria-hidden />
+              </button>
+              <span
+                className={`min-w-6 text-center text-sm font-bold tabular-nums ${pop ? "glovo-qty-pop" : ""}`}
+              >
+                {qty}
+              </span>
+              <button
+                type="button"
+                onClick={onAdd}
+                className={`${buttonClass("primary")} !min-h-9 !min-w-9 !rounded-full !px-0 touch-manipulation`}
+                aria-label={labels.addToCart}
+              >
+                <Plus size={16} aria-hidden />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={product.out_of_stock}
+              onClick={onAdd}
+              className={`${buttonClass("primary")} !min-h-10 !min-w-10 !rounded-full !px-0 touch-manipulation active:scale-95 disabled:opacity-40`}
+              aria-label={labels.addToCart}
+            >
+              <Plus size={18} aria-hidden />
+            </button>
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
