@@ -1,10 +1,19 @@
-import Link from "next/link";
+"use client";
+
 import { ChevronLeft, ChevronRight, FolderOpen, Search, Store } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Badge, Card, EmptyState, buttonClass } from "@/components/ui";
+import {
+  browseLocalProducts,
+  listParentCategories,
+  listSubcategories,
+  type GlovoRawCategory,
+} from "@/lib/glovo/browse";
 import type {
   GlovoBrowsePage,
   GlovoCategoryNode,
   GlovoMarket,
+  GlovoProduct,
   GlovoRetailerKey,
 } from "@/lib/glovo/types";
 import { formatMoney, toMinor } from "@/lib/money";
@@ -33,61 +42,209 @@ type Labels = {
   noProductsInCategory: string;
 };
 
-function href(parts: {
-  market?: GlovoRetailerKey | null;
-  cat?: string | null;
-  sub?: string | null;
-  q?: string;
-  page?: number;
-}): string {
-  const params = new URLSearchParams();
-  if (parts.market) params.set("market", parts.market);
-  if (parts.cat) params.set("cat", parts.cat);
-  if (parts.sub) params.set("sub", parts.sub);
-  if (parts.q?.trim()) params.set("q", parts.q.trim());
-  if (parts.page && parts.page > 1) params.set("page", String(parts.page));
-  const qs = params.toString();
-  return qs ? `/price-comparison?${qs}` : "/price-comparison";
+type CatalogPayload = {
+  markets: GlovoMarket[];
+  products: GlovoProduct[];
+  categories: GlovoRawCategory[];
+  empty: boolean;
+};
+
+let catalogPromise: Promise<CatalogPayload> | null = null;
+
+function loadCatalog(): Promise<CatalogPayload> {
+  if (!catalogPromise) {
+    catalogPromise = fetch("/api/glovo/catalog", { credentials: "same-origin" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("catalog_failed");
+        return (await res.json()) as CatalogPayload;
+      })
+      .catch((err) => {
+        catalogPromise = null;
+        throw err;
+      });
+  }
+  return catalogPromise;
 }
 
-export function GlovoBrasovBrowse({
-  markets,
-  selectedMarket,
-  parents,
-  subcategories,
-  browse,
-  parentSlug,
-  categorySlug,
-  query,
-  locale,
-  labels,
-}: {
-  markets: GlovoMarket[];
-  selectedMarket: GlovoRetailerKey | null;
-  parents: GlovoCategoryNode[];
-  subcategories: GlovoCategoryNode[];
-  browse: GlovoBrowsePage | null;
-  parentSlug: string | null;
-  categorySlug: string | null;
-  query: string;
-  locale: string;
-  labels: Labels;
+/** Warm the catalog as soon as Comparare is likely to be opened. */
+export function prefetchGlovoCatalog(): void {
+  void loadCatalog().catch(() => {});
+}
+
+function syncUrl(state: {
+  market: GlovoRetailerKey | null;
+  cat: string | null;
+  sub: string | null;
+  q: string;
+  page: number;
 }) {
+  const params = new URLSearchParams();
+  if (state.market) params.set("market", state.market);
+  if (state.cat) params.set("cat", state.cat);
+  if (state.sub) params.set("sub", state.sub);
+  if (state.q.trim()) params.set("q", state.q.trim());
+  if (state.page > 1) params.set("page", String(state.page));
+  const qs = params.toString();
+  const next = qs ? `/price-comparison?${qs}` : "/price-comparison";
+  if (typeof window !== "undefined" && window.location.pathname + window.location.search !== next) {
+    window.history.replaceState(null, "", next);
+  }
+}
+
+function readInitial(): {
+  market: GlovoRetailerKey | null;
+  cat: string | null;
+  sub: string | null;
+  q: string;
+  page: number;
+} {
+  if (typeof window === "undefined") {
+    return { market: null, cat: null, sub: null, q: "", page: 1 };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const market = params.get("market");
+  return {
+    market: RETAILER_ORDER.includes(market as GlovoRetailerKey)
+      ? (market as GlovoRetailerKey)
+      : null,
+    cat: params.get("cat"),
+    sub: params.get("sub"),
+    q: params.get("q") ?? "",
+    page: Math.max(1, Number.parseInt(params.get("page") || "1", 10) || 1),
+  };
+}
+
+export function GlovoBrasovBrowse({ locale, labels }: { locale: string; labels: Labels }) {
+  const [catalog, setCatalog] = useState<CatalogPayload | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [market, setMarket] = useState<GlovoRetailerKey | null>(null);
+  const [parentSlug, setParentSlug] = useState<string | null>(null);
+  const [categorySlug, setCategorySlug] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [draftQuery, setDraftQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    const initial = readInitial();
+    setMarket(initial.market);
+    setParentSlug(initial.cat);
+    setCategorySlug(initial.sub);
+    setQuery(initial.q);
+    setDraftQuery(initial.q);
+    setPage(initial.page);
+
+    let cancelled = false;
+    loadCatalog()
+      .then((data) => {
+        if (!cancelled) setCatalog(data);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    syncUrl({ market, cat: parentSlug, sub: categorySlug, q: query, page });
+  }, [market, parentSlug, categorySlug, query, page]);
+
+  const markets = catalog?.markets ?? [];
   const ordered = RETAILER_ORDER.map((key) => markets.find((m) => m.retailer_key === key)).filter(
     (m): m is GlovoMarket => Boolean(m),
   );
-  const activeMarket = selectedMarket
-    ? ordered.find((m) => m.retailer_key === selectedMarket) ?? null
-    : null;
+  const products = catalog?.products ?? [];
+  const categories = catalog?.categories ?? [];
 
-  const showCategories = Boolean(selectedMarket) && !query && !parentSlug && !categorySlug;
+  const parents = useMemo(
+    () => (market ? listParentCategories(market, products, categories) : []),
+    [market, products, categories],
+  );
+  const subcategories = useMemo(
+    () =>
+      market && parentSlug
+        ? listSubcategories(market, parentSlug, products, categories)
+        : [],
+    [market, parentSlug, products, categories],
+  );
+
+  const showCategories = Boolean(market) && !query && !parentSlug && !categorySlug;
   const showSubcategories =
-    Boolean(selectedMarket) && Boolean(parentSlug) && !categorySlug && !query && subcategories.length > 0;
+    Boolean(market) && Boolean(parentSlug) && !categorySlug && !query && subcategories.length > 0;
   const showProducts =
-    Boolean(selectedMarket) &&
+    Boolean(market) &&
     (Boolean(query) ||
       Boolean(categorySlug) ||
       (Boolean(parentSlug) && subcategories.length === 0));
+
+  const browse: GlovoBrowsePage | null = useMemo(() => {
+    if (!market || !showProducts) return null;
+    return browseLocalProducts(products, {
+      retailer: market,
+      parentSlug,
+      categorySlug,
+      query,
+      page,
+    });
+  }, [market, showProducts, products, parentSlug, categorySlug, query, page]);
+
+  const selectMarket = (next: GlovoRetailerKey | null) => {
+    startTransition(() => {
+      setMarket(next);
+      setParentSlug(null);
+      setCategorySlug(null);
+      setQuery("");
+      setDraftQuery("");
+      setPage(1);
+    });
+  };
+
+  const selectParent = (slug: string | null) => {
+    startTransition(() => {
+      setParentSlug(slug);
+      setCategorySlug(null);
+      setQuery("");
+      setDraftQuery("");
+      setPage(1);
+    });
+  };
+
+  const selectSub = (slug: string | null) => {
+    startTransition(() => {
+      setCategorySlug(slug);
+      setQuery("");
+      setDraftQuery("");
+      setPage(1);
+    });
+  };
+
+  if (loadError) {
+    return (
+      <EmptyState icon={<Store size={28} />} title={labels.emptyTitle} body={labels.emptyBody} />
+    );
+  }
+
+  if (!catalog) {
+    return (
+      <div className="space-y-3" aria-busy="true">
+        <div className="h-36 animate-pulse rounded-[var(--radius-lg)] bg-surface-2" />
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="h-20 animate-pulse rounded-[var(--radius-lg)] bg-surface-2" />
+          <div className="h-20 animate-pulse rounded-[var(--radius-lg)] bg-surface-2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (catalog.empty) {
+    return (
+      <EmptyState icon={<Store size={28} />} title={labels.emptyTitle} body={labels.emptyBody} />
+    );
+  }
+
+  const activeMarket = market ? ordered.find((m) => m.retailer_key === market) ?? null : null;
 
   return (
     <section className="space-y-4">
@@ -99,32 +256,39 @@ export function GlovoBrasovBrowse({
         <p className="mt-1 max-w-2xl text-sm text-muted">{labels.subtitle}</p>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {ordered.map((market) => {
-            const active = selectedMarket === market.retailer_key;
+          {ordered.map((item) => {
+            const active = market === item.retailer_key;
             return (
-              <Link
-                key={market.id}
-                href={href({ market: active ? null : market.retailer_key })}
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => selectMarket(active ? null : item.retailer_key)}
                 className={buttonClass(active ? "primary" : "secondary")}
               >
                 <span
                   className="mr-1.5 inline-flex size-5 items-center justify-center rounded-md text-[10px] font-bold text-white"
-                  style={{ backgroundColor: market.brand_color ?? "var(--brand)" }}
+                  style={{ backgroundColor: item.brand_color ?? "var(--brand)" }}
                   aria-hidden
                 >
-                  {market.logo_emoji ?? market.name.slice(0, 1)}
+                  {item.logo_emoji ?? item.name.slice(0, 1)}
                 </span>
-                {market.name}
-              </Link>
+                {item.name}
+              </button>
             );
           })}
         </div>
 
-        {selectedMarket ? (
-          <form action="/price-comparison" method="get" className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <input type="hidden" name="market" value={selectedMarket} />
-            {parentSlug ? <input type="hidden" name="cat" value={parentSlug} /> : null}
-            {categorySlug ? <input type="hidden" name="sub" value={categorySlug} /> : null}
+        {market ? (
+          <form
+            className="mt-4 flex flex-col gap-2 sm:flex-row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              startTransition(() => {
+                setQuery(draftQuery.trim());
+                setPage(1);
+              });
+            }}
+          >
             <label className="relative min-w-0 flex-1">
               <span className="sr-only">{labels.search}</span>
               <Search
@@ -133,8 +297,8 @@ export function GlovoBrasovBrowse({
               />
               <input
                 type="search"
-                name="q"
-                defaultValue={query}
+                value={draftQuery}
+                onChange={(e) => setDraftQuery(e.target.value)}
                 placeholder={labels.searchPlaceholder}
                 className="w-full rounded-[var(--radius-md)] border border-border bg-[color:var(--input-bg)] py-2.5 pr-3 pl-9 text-sm text-fg outline-none ring-brand/30 focus:ring-2"
               />
@@ -150,31 +314,33 @@ export function GlovoBrasovBrowse({
         <p className="mt-3 text-xs text-muted">{labels.sourceNote}</p>
       </div>
 
-      {selectedMarket ? (
+      {market ? (
         <nav className="flex flex-wrap items-center gap-2 text-sm">
-          <Link href="/price-comparison" className="text-brand hover:underline">
+          <button type="button" onClick={() => selectMarket(null)} className="text-brand hover:underline">
             {labels.allMarkets}
-          </Link>
+          </button>
           {activeMarket ? (
             <>
               <span className="text-muted">/</span>
-              <Link
-                href={href({ market: selectedMarket })}
+              <button
+                type="button"
+                onClick={() => selectParent(null)}
                 className={!parentSlug && !query ? "font-semibold text-fg" : "text-brand hover:underline"}
               >
                 {activeMarket.name}
-              </Link>
+              </button>
             </>
           ) : null}
           {parentSlug ? (
             <>
               <span className="text-muted">/</span>
-              <Link
-                href={href({ market: selectedMarket, cat: parentSlug })}
+              <button
+                type="button"
+                onClick={() => selectSub(null)}
                 className={!categorySlug && !query ? "font-semibold text-fg" : "text-brand hover:underline"}
               >
                 {parents.find((p) => p.slug === parentSlug)?.title || parentSlug}
-              </Link>
+              </button>
             </>
           ) : null}
           {categorySlug ? (
@@ -188,25 +354,30 @@ export function GlovoBrasovBrowse({
         </nav>
       ) : null}
 
-      {!selectedMarket ? (
+      {!market ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {ordered.map((market) => (
-            <Link key={market.id} href={href({ market: market.retailer_key })} className="block">
+          {ordered.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => selectMarket(item.retailer_key)}
+              className="block text-left"
+            >
               <Card className="transition hover:border-brand/40">
                 <div className="flex items-center gap-3">
                   <span
                     className="inline-flex size-12 items-center justify-center rounded-2xl text-lg font-bold text-white"
-                    style={{ backgroundColor: market.brand_color ?? "var(--brand)" }}
+                    style={{ backgroundColor: item.brand_color ?? "var(--brand)" }}
                   >
-                    {market.logo_emoji ?? market.name.slice(0, 1)}
+                    {item.logo_emoji ?? item.name.slice(0, 1)}
                   </span>
                   <div>
-                    <p className="font-semibold text-fg">{market.name}</p>
+                    <p className="font-semibold text-fg">{item.name}</p>
                     <p className="text-xs text-muted">Brașov · Glovo</p>
                   </div>
                 </div>
               </Card>
-            </Link>
+            </button>
           ))}
         </div>
       ) : null}
@@ -215,7 +386,7 @@ export function GlovoBrasovBrowse({
         <CategoryGrid
           title={labels.categories}
           nodes={parents}
-          hrefFor={(node) => href({ market: selectedMarket, cat: node.slug })}
+          onSelect={(node) => selectParent(node.slug)}
           empty={labels.noProductsInCategory}
         />
       ) : null}
@@ -224,11 +395,9 @@ export function GlovoBrasovBrowse({
         <CategoryGrid
           title={labels.subcategories}
           nodes={subcategories}
-          hrefFor={(node) =>
-            href({ market: selectedMarket, cat: parentSlug, sub: node.slug })
-          }
+          onSelect={(node) => selectSub(node.slug)}
           empty={labels.noProductsInCategory}
-          backHref={href({ market: selectedMarket })}
+          onBack={() => selectParent(null)}
           backLabel={labels.back}
         />
       ) : null}
@@ -239,23 +408,7 @@ export function GlovoBrasovBrowse({
           browse={browse}
           locale={locale}
           labels={labels}
-          buildPageHref={(page) =>
-            href({
-              market: selectedMarket,
-              cat: parentSlug,
-              sub: categorySlug,
-              q: query,
-              page,
-            })
-          }
-        />
-      ) : null}
-
-      {selectedMarket && !showCategories && !showSubcategories && !showProducts ? (
-        <EmptyState
-          icon={<Store size={28} />}
-          title={labels.emptyTitle}
-          body={labels.emptyBody}
+          onPage={(nextPage) => startTransition(() => setPage(nextPage))}
         />
       ) : null}
     </section>
@@ -265,35 +418,44 @@ export function GlovoBrasovBrowse({
 function CategoryGrid({
   title,
   nodes,
-  hrefFor,
+  onSelect,
   empty,
-  backHref,
+  onBack,
   backLabel,
 }: {
   title: string;
   nodes: GlovoCategoryNode[];
-  hrefFor: (node: GlovoCategoryNode) => string;
+  onSelect: (node: GlovoCategoryNode) => void;
   empty: string;
-  backHref?: string;
+  onBack?: () => void;
   backLabel?: string;
 }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-semibold text-fg">{title}</h2>
-        {backHref && backLabel ? (
-          <Link href={backHref} className={`${buttonClass("ghost")} inline-flex items-center gap-1`}>
+        {onBack && backLabel ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className={`${buttonClass("ghost")} inline-flex items-center gap-1`}
+          >
             <ChevronLeft size={16} />
             {backLabel}
-          </Link>
+          </button>
         ) : null}
       </div>
       {nodes.length === 0 ? (
-        <EmptyState icon={<FolderOpen size={28} />} title={empty} body="" />
+        <EmptyState icon={<FolderOpen size={28} />} title={empty} />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {nodes.map((node) => (
-            <Link key={node.slug} href={hrefFor(node)} className="block">
+            <button
+              key={node.slug}
+              type="button"
+              onClick={() => onSelect(node)}
+              className="block text-left"
+            >
               <Card className="h-full transition hover:border-brand/40">
                 <p className="font-medium text-fg">{node.title}</p>
                 <p className="mt-1 text-xs text-muted">
@@ -302,7 +464,7 @@ function CategoryGrid({
                     : `${node.product_count}`}
                 </p>
               </Card>
-            </Link>
+            </button>
           ))}
         </div>
       )}
@@ -315,24 +477,22 @@ function ProductGrid({
   browse,
   locale,
   labels,
-  buildPageHref,
+  onPage,
 }: {
   title: string;
   browse: GlovoBrowsePage;
   locale: string;
   labels: Labels;
-  buildPageHref: (page: number) => string;
+  onPage: (page: number) => void;
 }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <h2 className="text-base font-semibold text-fg">{title}</h2>
-        <Badge tone="brand">
-          {labels.items.replace("{count}", String(browse.total))}
-        </Badge>
+        <Badge tone="brand">{labels.items.replace("{count}", String(browse.total))}</Badge>
       </div>
       {browse.items.length === 0 ? (
-        <EmptyState icon={<Store size={28} />} title={labels.noProductsInCategory} body="" />
+        <EmptyState icon={<Store size={28} />} title={labels.noProductsInCategory} />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {browse.items.map((product) => (
@@ -346,6 +506,7 @@ function ProductGrid({
                       alt=""
                       className="size-full object-cover"
                       loading="lazy"
+                      decoding="async"
                       referrerPolicy="no-referrer"
                     />
                   ) : (
@@ -366,9 +527,7 @@ function ProductGrid({
                           locale,
                         )}
                     </span>
-                    {product.out_of_stock ? (
-                      <Badge tone="warn">{labels.outOfStock}</Badge>
-                    ) : null}
+                    {product.out_of_stock ? <Badge tone="warn">{labels.outOfStock}</Badge> : null}
                   </div>
                 </div>
               </div>
@@ -386,22 +545,24 @@ function ProductGrid({
           </p>
           <div className="flex gap-2">
             {browse.page > 1 ? (
-              <Link
-                href={buildPageHref(browse.page - 1)}
+              <button
+                type="button"
+                onClick={() => onPage(browse.page - 1)}
                 className={`${buttonClass("secondary")} inline-flex items-center gap-1`}
               >
                 <ChevronLeft size={16} />
                 {labels.prev}
-              </Link>
+              </button>
             ) : null}
             {browse.page < browse.totalPages ? (
-              <Link
-                href={buildPageHref(browse.page + 1)}
+              <button
+                type="button"
+                onClick={() => onPage(browse.page + 1)}
                 className={`${buttonClass("secondary")} inline-flex items-center gap-1`}
               >
                 {labels.next}
                 <ChevronRight size={16} />
-              </Link>
+              </button>
             ) : null}
           </div>
         </div>

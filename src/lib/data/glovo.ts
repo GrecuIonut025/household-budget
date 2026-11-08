@@ -67,7 +67,13 @@ export async function browseGlovoProducts(opts: {
 }): Promise<GlovoBrowsePage> {
   const local = loadLocalGlovoCatalog();
   if (!local) {
-    return { items: [], total: 0, page: 1, pageSize: opts.pageSize ?? GLOVO_PAGE_SIZE, totalPages: 1 };
+    return {
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: opts.pageSize ?? GLOVO_PAGE_SIZE,
+      totalPages: 1,
+    };
   }
   return browseLocalProducts(local.products, opts);
 }
