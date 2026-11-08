@@ -1,12 +1,17 @@
+"use client";
+
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { AuthorChip } from "@/components/community/author-chip";
-import { GradeBadge } from "@/components/community/grade-badge";
-import { InlineComments } from "@/components/community/inline-comments";
-import { ReactionBar } from "@/components/community/reaction-bar";
-import { FavoriteButton } from "@/components/recipes/favorite-button";
+import {
+  InlineComments,
+  type InlineCommentsHandle,
+} from "@/components/community/inline-comments";
+import { DoubleTapLove, PostActions } from "@/components/community/post-actions";
+import { formatRelativeTime } from "@/lib/format";
 import type { CommunityFeedItem } from "@/lib/data/community";
-import type { Translate } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n/provider";
 
 export function RecipeSocialCard({
   item,
@@ -14,96 +19,123 @@ export function RecipeSocialCard({
   canFavorite,
   canReact,
   currentUserId,
-  minutesLabel,
-  servingsLabel,
-  categoryLabel,
-  t,
-  inlineComments = true,
 }: {
   item: CommunityFeedItem;
-  /** Active household — favorite only when the post belongs to it. */
   householdId: string;
   canFavorite: boolean;
   canReact: boolean;
   currentUserId: string;
-  minutesLabel: string | null;
-  servingsLabel: string;
-  categoryLabel: string | null;
-  t: Translate;
+  minutesLabel?: string | null;
+  servingsLabel?: string;
+  categoryLabel?: string | null;
   inlineComments?: boolean;
 }) {
+  const { t, locale } = useI18n();
   const ownHousehold = item.householdId === householdId;
+  const commentsRef = useRef<InlineCommentsHandle | null>(null);
+  const likes = item.reactions.total;
+  const [captionOpen, setCaptionOpen] = useState(false);
+  const longCaption = Boolean(item.description && item.description.length > 90);
+
   return (
-    <article className="dashboard-card flex h-full flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <div className="relative aspect-[16/10] overflow-hidden bg-surface-2">
-        {item.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.imageUrl}
-            alt=""
-            className="size-full object-cover transition duration-500 hover:scale-105"
-          />
-        ) : (
-          <div className="grid size-full place-items-center bg-gradient-to-br from-brand-soft to-surface-2 text-brand/50">
-            <Sparkles size={36} aria-hidden />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-        {canFavorite && ownHousehold ? (
-          <div className="absolute top-2 right-2">
-            <FavoriteButton
-              recipeId={item.id}
-              householdId={householdId}
-              isFavorite={item.isFavorite}
-              label={item.isFavorite ? t("recipes.unfavorite") : t("recipes.favorite")}
-              className="size-9 bg-black/35 text-white hover:text-pink-300"
-            />
-          </div>
-        ) : null}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-3 p-4">
+    <article className="border-b border-border-soft pb-3">
+      <header className="flex items-center gap-2 px-3 py-2.5">
         {item.author ? (
-          <AuthorChip author={item.author} t={t} size="sm" />
+          <AuthorChip author={item.author} t={t} size="sm" className="min-w-0 flex-1" />
         ) : (
-          <p className="text-xs text-muted">{t("community.unknownAuthor")}</p>
+          <p className="flex-1 text-xs text-muted">{t("community.unknownAuthor")}</p>
         )}
+        <time
+          dateTime={item.communityPublishedAt}
+          className="shrink-0 text-[11px] text-muted"
+        >
+          {formatRelativeTime(item.communityPublishedAt, locale)}
+        </time>
+      </header>
 
-        <h3 className="line-clamp-2 text-sm font-bold tracking-tight text-fg">{item.title}</h3>
-        <div className="flex flex-wrap gap-3 text-[11px] text-muted">
-          {minutesLabel ? <span>{minutesLabel}</span> : null}
-          <span>{servingsLabel}</span>
-          {categoryLabel ? <span>{categoryLabel}</span> : null}
+      <DoubleTapLove recipeId={item.id} canReact={canReact}>
+        <div className="relative aspect-[4/5] w-full overflow-hidden bg-surface-2 sm:aspect-square">
+          {item.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.imageUrl}
+              alt=""
+              className="size-full object-cover"
+              draggable={false}
+            />
+          ) : (
+            <div className="grid size-full place-items-center bg-gradient-to-br from-brand-soft to-surface-2 text-brand/45">
+              <Sparkles size={48} aria-hidden />
+            </div>
+          )}
         </div>
-        {item.description ? (
-          <p className="line-clamp-2 text-xs leading-relaxed text-muted">{item.description}</p>
-        ) : null}
+      </DoubleTapLove>
 
-        <ReactionBar
+      <PostActions
+        recipeId={item.id}
+        householdId={householdId}
+        summary={item.reactions}
+        canReact={canReact}
+        canFavorite={canFavorite}
+        isFavorite={item.isFavorite}
+        ownHousehold={ownHousehold}
+        commentCount={item.commentCount}
+        onCommentClick={() => commentsRef.current?.open()}
+      />
+
+      {likes > 0 ? (
+        <p className="px-4 pt-1 text-sm font-semibold text-fg">
+          {t("community.likesCount", { count: likes })}
+        </p>
+      ) : null}
+
+      <div className="space-y-1 px-4 pt-1.5">
+        <p className="text-sm leading-snug text-fg">
+          {item.author ? (
+            <Link
+              href={`/community/members/${item.author.id}`}
+              className="font-semibold hover:opacity-80"
+            >
+              {item.author.displayName}{" "}
+            </Link>
+          ) : null}
+          <span className="font-medium">{item.title}</span>
+          {item.description ? (
+            <>
+              <span className="text-muted">
+                {" — "}
+                {captionOpen || !longCaption
+                  ? item.description
+                  : `${item.description.slice(0, 90).trimEnd()}…`}
+              </span>
+              {longCaption && !captionOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setCaptionOpen(true)}
+                  className="ml-1 text-muted hover:text-fg"
+                >
+                  {t("community.captionMore")}
+                </button>
+              ) : null}
+            </>
+          ) : null}
+        </p>
+        <Link
+          href={`/community/posts/${item.id}`}
+          className="inline-block text-xs font-medium text-muted hover:text-fg"
+        >
+          {t("community.viewRecipe")}
+        </Link>
+      </div>
+
+      <div className="px-3 pt-2">
+        <InlineComments
+          ref={commentsRef}
           recipeId={item.id}
-          summary={item.reactions}
-          canReact={canReact}
-          t={t}
+          commentCount={item.commentCount}
+          currentUserId={currentUserId}
+          canWrite={canReact}
         />
-
-        {inlineComments ? (
-          <InlineComments
-            recipeId={item.id}
-            commentCount={item.commentCount}
-            currentUserId={currentUserId}
-            canWrite={canReact}
-          />
-        ) : null}
-
-        <div className="mt-auto flex min-w-0 items-center gap-2 border-t border-border-soft pt-3">
-          <Link
-            href={`/community/posts/${item.id}`}
-            className="btn-gradient flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold"
-          >
-            <span className="truncate">{t("community.viewRecipe")}</span>
-            <ArrowRight size={14} className="shrink-0" aria-hidden />
-          </Link>
-          {item.author ? <GradeBadge grade={item.author.grade} t={t} /> : null}
-        </div>
       </div>
     </article>
   );

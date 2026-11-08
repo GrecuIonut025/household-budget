@@ -391,3 +391,31 @@ dialog::backdrop {
   outline: 2px solid color-mix(in srgb, var(--brand) 55%, transparent);
   outline-offset: 2px;
 }
+
+/* Instagram-style double-tap heart on community posts */
+@keyframes ig-heart {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  30% {
+    transform: scale(0.95);
+  }
+  45%,
+  80% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
+
+.animate-ig-heart {
+  animation: ig-heart 0.7s ease-out forwards;
+}

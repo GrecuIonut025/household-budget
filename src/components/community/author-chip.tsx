@@ -16,13 +16,44 @@ export function AuthorChip({
   t,
   size = "md",
   className,
+  avatarOnly = false,
 }: {
   author: CommunityAuthor;
   t: Translate;
   size?: "sm" | "md";
   className?: string;
+  /** Avatar link only — for Instagram-style comment rows. */
+  avatarOnly?: boolean;
 }) {
   const avatarSize = size === "sm" ? "size-7 text-[10px]" : "size-9 text-xs";
+  const avatar = (
+    <span
+      className={clsx(
+        "grid shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-surface-2 font-semibold text-fg",
+        avatarSize,
+      )}
+    >
+      {author.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={author.avatarUrl} alt="" className="size-full object-cover" />
+      ) : (
+        initials(author.displayName)
+      )}
+    </span>
+  );
+
+  if (avatarOnly) {
+    return (
+      <Link
+        href={`/community/members/${author.id}`}
+        aria-label={author.displayName}
+        className={clsx("inline-flex shrink-0 rounded-full transition hover:opacity-90", className)}
+      >
+        {avatar}
+      </Link>
+    );
+  }
+
   return (
     <Link
       href={`/community/members/${author.id}`}
@@ -31,19 +62,7 @@ export function AuthorChip({
         className,
       )}
     >
-      <span
-        className={clsx(
-          "grid shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-surface-2 font-semibold text-fg",
-          avatarSize,
-        )}
-      >
-        {author.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={author.avatarUrl} alt="" className="size-full object-cover" />
-        ) : (
-          initials(author.displayName)
-        )}
-      </span>
+      {avatar}
       <span className="min-w-0 flex flex-col">
         <span className="flex min-w-0 items-center gap-1.5">
           <span

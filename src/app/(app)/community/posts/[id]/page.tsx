@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChefHat, ChevronLeft, Clock, Users } from "lucide-react";
+import { ChefHat, ChevronLeft } from "lucide-react";
 import { AuthorChip } from "@/components/community/author-chip";
 import { CommentThread } from "@/components/community/comment-thread";
-import { ReactionBar } from "@/components/community/reaction-bar";
-import { Badge, Card, buttonClass } from "@/components/ui";
+import { PostActions } from "@/components/community/post-actions";
+import { PostDetailClient } from "@/components/community/post-detail-client";
+import { buttonClass } from "@/components/ui";
 import { getCommunityPostSocial } from "@/lib/data/community";
 import { requireAppContext } from "@/lib/data/context";
 import { getImageUrls } from "@/lib/data/recipes";
 import { canWrite } from "@/lib/data/types";
-import type { MessageKey } from "@/lib/i18n";
 import { getTranslator } from "@/lib/i18n/server";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
@@ -53,7 +53,7 @@ export default async function CommunityPostPage({
   const { data } = await supabase
     .from("recipes")
     .select(
-      "id, household_id, title, description, servings, prep_minutes, cook_minutes, category, tags, image_path, community_published_at",
+      "id, household_id, title, description, servings, prep_minutes, cook_minutes, category, tags, image_path, community_published_at, is_favorite",
     )
     .eq("id", parsed.data)
     .not("community_published_at", "is", null)
@@ -65,64 +65,79 @@ export default async function CommunityPostPage({
   const imageUrl = data.image_path
     ? (imageUrls[data.image_path as string] ?? null)
     : null;
-  const minutes = (Number(data.prep_minutes) || 0) + (Number(data.cook_minutes) || 0);
   const ownHousehold = data.household_id === ctx.active.household.id;
-  const category = data.category as string | null;
 
   return (
-    <article className="space-y-4">
-      <Link
-        href="/community"
-        className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-muted hover:text-fg"
-      >
-        <ChevronLeft size={18} aria-hidden />
-        {t("nav.community")}
-      </Link>
-
-      <div className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface">
-        <div className="relative aspect-[16/9] w-full bg-gradient-to-br from-brand-soft to-surface-2 sm:aspect-[21/9]">
-          {imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageUrl} alt="" className="size-full object-cover" />
-          ) : (
-            <div className="grid size-full place-items-center text-brand/60">
-              <ChefHat size={56} aria-hidden />
-            </div>
-          )}
+    <div className="-mx-4 flex justify-center sm:-mx-6 md:mx-0">
+      <article className="w-full max-w-[470px] border-border md:rounded-2xl md:border md:bg-surface md:shadow-card">
+        <div className="flex items-center gap-2 border-b border-border-soft px-3 py-2.5">
+          <Link
+            href="/community"
+            className="inline-flex size-10 items-center justify-center rounded-full text-fg hover:bg-surface-2"
+            aria-label={t("nav.community")}
+          >
+            <ChevronLeft size={22} aria-hidden />
+          </Link>
+          <h1 className="min-w-0 flex-1 truncate text-sm font-bold">{t("community.viewRecipe")}</h1>
         </div>
-        <div className="space-y-3 p-4 sm:p-5">
-          <h1 className="text-2xl font-semibold leading-tight tracking-tight">
-            {data.title as string}
-          </h1>
+
+        <header className="flex items-center gap-2 px-3 py-2.5">
           {social.author ? (
-            <AuthorChip author={social.author} t={t} />
+            <AuthorChip author={social.author} t={t} size="sm" className="min-w-0 flex-1" />
           ) : (
-            <p className="text-xs text-muted">{t("community.unknownAuthor")}</p>
+            <p className="flex-1 text-xs text-muted">{t("community.unknownAuthor")}</p>
           )}
-          <ReactionBar
-            recipeId={data.id as string}
-            summary={social.reactions}
-            canReact={writer}
-            t={t}
-          />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <Users size={16} aria-hidden />
-              {t("recipes.servingsCount", { count: Number(data.servings) })}
-            </span>
-            {minutes > 0 ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Clock size={16} aria-hidden />
-                {t("recipes.minutes", { count: minutes })}
-              </span>
-            ) : null}
+        </header>
+
+        <PostDetailClient
+          recipeId={data.id as string}
+          canReact={writer}
+          imageUrl={imageUrl}
+        >
+          <div className="relative aspect-[4/5] w-full overflow-hidden bg-surface-2 sm:aspect-square">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt="" className="size-full object-cover" draggable={false} />
+            ) : (
+              <div className="grid size-full place-items-center text-brand/60">
+                <ChefHat size={56} aria-hidden />
+              </div>
+            )}
           </div>
-          {category ? (
-            <Badge tone="brand">{t(`recipes.category.${category}` as MessageKey)}</Badge>
-          ) : null}
-          {data.description ? (
-            <p className="text-sm leading-relaxed text-muted">{data.description as string}</p>
-          ) : null}
+        </PostDetailClient>
+
+        <PostActions
+          recipeId={data.id as string}
+          householdId={ctx.active.household.id}
+          summary={social.reactions}
+          canReact={writer}
+          canFavorite={writer}
+          isFavorite={Boolean(data.is_favorite)}
+          ownHousehold={ownHousehold}
+          commentCount={social.commentCount}
+        />
+
+        {social.reactions.total > 0 ? (
+          <p className="px-4 pt-1 text-sm font-semibold text-fg">
+            {t("community.likesCount", { count: social.reactions.total })}
+          </p>
+        ) : null}
+
+        <div className="space-y-2 px-4 py-2">
+          <p className="text-sm leading-snug text-fg">
+            {social.author ? (
+              <Link
+                href={`/community/members/${social.author.id}`}
+                className="font-semibold hover:opacity-80"
+              >
+                {social.author.displayName}{" "}
+              </Link>
+            ) : null}
+            <span className="font-medium">{data.title as string}</span>
+            {data.description ? (
+              <span className="text-muted"> — {data.description as string}</span>
+            ) : null}
+          </p>
           {ownHousehold ? (
             <Link
               href={`/recipes/${data.id}`}
@@ -132,16 +147,16 @@ export default async function CommunityPostPage({
             </Link>
           ) : null}
         </div>
-      </div>
 
-      <Card>
-        <CommentThread
-          recipeId={data.id as string}
-          comments={social.comments}
-          currentUserId={ctx.user.id}
-          canWrite={writer}
-        />
-      </Card>
-    </article>
+        <div className="border-t border-border-soft px-3 py-3">
+          <CommentThread
+            recipeId={data.id as string}
+            comments={social.comments}
+            currentUserId={ctx.user.id}
+            canWrite={writer}
+          />
+        </div>
+      </article>
+    </div>
   );
 }
