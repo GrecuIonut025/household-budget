@@ -27,6 +27,7 @@ export function FeedInfinite({
   householdId,
   canFavorite,
   canReact,
+  currentUserId,
   emptyTitle,
   emptyBody,
 }: {
@@ -34,6 +35,7 @@ export function FeedInfinite({
   householdId: string;
   canFavorite: boolean;
   canReact: boolean;
+  currentUserId: string;
   emptyTitle: string;
   emptyBody: string;
 }) {
@@ -106,6 +108,7 @@ export function FeedInfinite({
                 householdId={householdId}
                 canFavorite={canFavorite}
                 canReact={canReact}
+                currentUserId={currentUserId}
                 minutesLabel={labels.minutes}
                 servingsLabel={labels.servings}
                 categoryLabel={labels.category}

@@ -65,30 +65,35 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
   const formProps = { householdId: household.id, categories, members, currentUserId: ctx.user.id, today };
 
   return (
-    <>
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
       <PageHeader title={t("tx.title")} action={writer ? <AddTransactionButton label={t("tx.add")} {...formProps} /> : undefined} />
 
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2 sm:gap-3">
         <Link href={monthHref(shiftMonth(month, -1))} className={navLink} aria-label={t("tx.prevMonth")}>
           <ChevronLeft size={20} aria-hidden />
         </Link>
-        <p className="text-base font-semibold capitalize">{formatMonthLabel(month, locale)}</p>
+        <p className="min-w-0 truncate text-center text-sm font-semibold capitalize sm:text-base">
+          {formatMonthLabel(month, locale)}
+        </p>
         <Link href={monthHref(shiftMonth(month, 1))} className={navLink} aria-label={t("tx.nextMonth")}>
           <ChevronRight size={20} aria-hidden />
         </Link>
       </div>
 
-      <Card className="mb-4">
-        <div className="grid grid-cols-3 gap-3">
-          <Stat label={t("tx.summaryIncome")} value={money(income)} tone="ok" />
-          <Stat label={t("tx.summaryExpenses")} value={money(expenses)} />
-          <Stat label={t("tx.summaryNet")} value={money(income - expenses)} tone={income - expenses < 0 ? "danger" : "default"} />
+      <Card>
+        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-3">
+          <Stat label={t("tx.summaryIncome")} value={money(income)} tone="ok" size="sm" />
+          <Stat label={t("tx.summaryExpenses")} value={money(expenses)} size="sm" />
+          <Stat
+            label={t("tx.summaryNet")}
+            value={money(income - expenses)}
+            tone={income - expenses < 0 ? "danger" : "default"}
+            size="sm"
+          />
         </div>
       </Card>
 
-      <div className="mb-4">
-        <TransactionFilters values={filters} categories={categories} members={members} />
-      </div>
+      <TransactionFilters values={filters} categories={categories} members={members} />
 
       {filtered.length === 0 ? (
         <Card>
@@ -110,7 +115,7 @@ export default async function TransactionsPage({ searchParams }: { searchParams:
           transactions={filtered.map((tx) => ({ ...tx, editable: admin || (writer && tx.created_by === ctx.user.id) }))}
         />
       )}
-      {!writer ? <p className="mt-4 text-center text-xs text-muted">{t("common.viewOnly")}</p> : null}
-    </>
+      {!writer ? <p className="text-center text-xs text-muted">{t("common.viewOnly")}</p> : null}
+    </div>
   );
 }

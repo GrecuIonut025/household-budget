@@ -57,7 +57,7 @@ export function TransactionList({ transactions, categories, members, currency, g
                 const who = tx.paid_by ? memberById.get(tx.paid_by) : undefined;
                 const body = (
                   <>
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border-soft bg-bg text-xs font-semibold text-brand-accent shadow-inner">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border-soft bg-bg text-xs font-semibold text-brand-accent shadow-inner sm:size-10">
                       {(tx.description || (category ? categoryLabel(t, category) : "?")).slice(0, 1).toUpperCase()}
                     </span>
                     <span className="min-w-0 flex-1 text-left">
@@ -65,20 +65,26 @@ export function TransactionList({ transactions, categories, members, currency, g
                         {tx.description || (category ? categoryLabel(t, category) : t(tx.type === "income" ? "common.income" : "common.expense"))}
                       </span>
                       <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
-                        {category ? <span>{categoryLabel(t, category)}</span> : null}
-                        {who ? <span>· {who}</span> : null}
+                        {category ? <span className="max-w-[10rem] truncate sm:max-w-none">{categoryLabel(t, category)}</span> : null}
+                        {who ? <span className="max-w-[7rem] truncate sm:max-w-none">· {who}</span> : null}
                         {tx.scope === "individual" ? <Badge>{t("common.individual")}</Badge> : null}
                       </span>
                     </span>
-                    <span className={clsx("tabular shrink-0 font-bold", grouped ? "text-sm" : "text-xs", tx.type === "income" ? "text-ok" : "text-fg")}>
+                    <span
+                      className={clsx(
+                        "tabular shrink-0 text-right font-bold",
+                        grouped ? "text-sm" : "text-xs",
+                        tx.type === "income" ? "text-ok" : "text-fg",
+                      )}
+                    >
                       {tx.type === "income" ? "+" : "−"}
                       {formatMoney(toMinor(tx.amount), currency, locale)}
                     </span>
                   </>
                 );
                 const rowClass = grouped
-                  ? "flex min-h-14 w-full items-center gap-3 px-4 py-2.5 hover:bg-surface-2"
-                  : "flex w-full items-center justify-between gap-3 rounded-2xl border border-border-soft bg-surface-2/80 p-2.5 transition-all hover:scale-[1.01] hover:bg-surface-hover";
+                  ? "flex min-h-14 w-full min-w-0 items-center gap-2.5 px-3 py-2.5 hover:bg-surface-2 sm:gap-3 sm:px-4"
+                  : "flex w-full min-w-0 items-center justify-between gap-2.5 rounded-2xl border border-border-soft bg-surface-2/80 p-2.5 transition-all hover:bg-surface-hover sm:gap-3";
                 return (
                   <li key={tx.id}>
                     {tx.editable ? (

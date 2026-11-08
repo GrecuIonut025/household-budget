@@ -1,53 +1,141 @@
+"use client";
+
 import Link from "next/link";
-import { Bell } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import {
+  Award,
+  Bell,
+  Heart,
+  MessageCircle,
+  Sparkles,
+  ThumbsUp,
+  X,
+} from "lucide-react";
 import { markNotificationsRead } from "@/app/actions/community";
+import { formatRelativeTime } from "@/lib/format";
 import type { NotificationRow } from "@/lib/data/community";
 import type { Translate } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n/provider";
 
-function labelFor(n: NotificationRow, t: Translate): string {
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 1).toUpperCase();
+  return (parts[0]!.slice(0, 1) + parts[1]!.slice(0, 1)).toUpperCase();
+}
+
+function metaFor(n: NotificationRow, t: Translate): {
+  title: string;
+  context: string;
+  Icon: typeof Bell;
+} {
   const actor = n.actorName ?? t("community.unknownAuthor");
   switch (n.kind) {
     case "reaction_love":
-      return t("community.notify.love", { name: actor });
+      return {
+        title: t("community.notify.loveTitle"),
+        context: t("community.notify.love", { name: actor }),
+        Icon: Heart,
+      };
     case "reaction_post":
-      return t("community.notify.reactionPost", { name: actor });
+      return {
+        title: t("community.notify.reactionPostTitle"),
+        context: t("community.notify.reactionPost", { name: actor }),
+        Icon: ThumbsUp,
+      };
     case "reaction_comment":
-      return t("community.notify.reactionComment", { name: actor });
+      return {
+        title: t("community.notify.reactionCommentTitle"),
+        context: t("community.notify.reactionComment", { name: actor }),
+        Icon: ThumbsUp,
+      };
     case "comment_reply":
-      return t("community.notify.reply", { name: actor });
+      return {
+        title: t("community.notify.replyTitle"),
+        context: t("community.notify.reply", { name: actor }),
+        Icon: MessageCircle,
+      };
     case "grade_up": {
       const grade = typeof n.payload.grade === "number" ? n.payload.grade : 1;
-      return t("community.notify.gradeUp", { grade });
+      return {
+        title: t("community.notify.gradeUpTitle"),
+        context: t("community.notify.gradeUp", { grade }),
+        Icon: Award,
+      };
     }
     case "first_publish":
-      return t("community.notify.firstPublish");
+      return {
+        title: t("community.notify.firstPublishTitle"),
+        context: t("community.notify.firstPublish"),
+        Icon: Sparkles,
+      };
     default:
-      return t("community.notify.generic");
+      return {
+        title: t("community.notify.generic"),
+        context: t("community.notify.generic"),
+        Icon: Bell,
+      };
   }
 }
 
 export function NotificationsBell({
   items,
   unreadCount,
-  t,
   compact,
 }: {
   items: NotificationRow[];
   unreadCount: number;
-  t: Translate;
   compact?: boolean;
 }) {
+  const { t, locale } = useI18n();
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const badge = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : null;
 
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    function onPointer(e: MouseEvent | TouchEvent) {
+      const node = rootRef.current;
+      if (!node) return;
+      if (e.target instanceof Node && !node.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("touchstart", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("touchstart", onPointer);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    const mq = window.matchMedia("(max-width: 767px)");
+    if (mq.matches) document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   return (
-    <details className="relative">
-      <summary
+    <div className="relative" ref={rootRef}>
+      <button
+        type="button"
+        aria-label={t("dashboard.notifications")}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((v) => !v)}
         className={
           compact
-            ? "relative flex size-10 list-none items-center justify-center rounded-2xl text-sidebar-muted transition hover:bg-sidebar-hover hover:text-sidebar-fg marker:content-none [&::-webkit-details-marker]:hidden"
-            : "relative flex size-10 list-none items-center justify-center rounded-2xl border border-border bg-surface text-muted transition hover:border-muted hover:text-fg marker:content-none [&::-webkit-details-marker]:hidden"
+            ? "relative flex size-10 items-center justify-center rounded-2xl text-sidebar-muted transition hover:bg-sidebar-hover hover:text-sidebar-fg"
+            : "relative flex size-10 items-center justify-center rounded-2xl border border-border bg-surface text-muted transition hover:border-muted hover:text-fg"
         }
-        aria-label={t("dashboard.notifications")}
       >
         <Bell size={18} aria-hidden />
         {badge ? (
@@ -55,40 +143,111 @@ export function NotificationsBell({
             {badge}
           </span>
         ) : null}
-      </summary>
-      <div className="absolute right-0 z-40 mt-2 w-[min(100vw-2rem,20rem)] rounded-2xl border border-border bg-surface p-2 shadow-[var(--shadow-card)]">
-        <div className="mb-1 flex items-center justify-between gap-2 px-2 pt-1">
-          <p className="text-xs font-semibold text-fg">{t("dashboard.notifications")}</p>
-          {unreadCount > 0 ? (
-            <form action={markNotificationsRead}>
-              <button type="submit" className="text-[11px] font-medium text-brand hover:underline">
-                {t("community.notify.markAllRead")}
-              </button>
-            </form>
-          ) : null}
-        </div>
-        {items.length === 0 ? (
-          <p className="px-2 py-4 text-sm text-muted">{t("dashboard.notificationsEmpty")}</p>
-        ) : (
-          <ul className="max-h-72 space-y-1 overflow-y-auto overscroll-contain">
-            {items.map((n) => {
-              const href = n.recipeId ? `/community/posts/${n.recipeId}` : "/community";
-              return (
-                <li key={n.id}>
-                  <Link
-                    href={href}
-                    className={`block rounded-xl px-2.5 py-2 text-sm transition hover:bg-surface-2 ${
-                      n.readAt ? "text-muted" : "bg-brand-soft/40 font-medium text-fg"
-                    }`}
-                  >
-                    <span className="line-clamp-3">{labelFor(n, t)}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </details>
+      </button>
+
+      {open ? (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/40 md:hidden"
+            aria-hidden
+            onClick={() => setOpen(false)}
+          />
+          <div
+            id={panelId}
+            role="dialog"
+            aria-label={t("dashboard.notifications")}
+            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[min(85dvh,36rem)] flex-col overflow-hidden rounded-t-3xl border border-border bg-surface shadow-[var(--shadow-card)] md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 md:max-h-[min(70vh,28rem)] md:w-[min(100vw-2rem,22.5rem)] md:rounded-2xl"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-soft px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-fg">{t("dashboard.notifications")}</p>
+                {unreadCount > 0 ? (
+                  <p className="text-[11px] text-muted">
+                    {t("community.notify.unreadCount", { count: unreadCount })}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {unreadCount > 0 ? (
+                  <form action={markNotificationsRead}>
+                    <button
+                      type="submit"
+                      className="rounded-lg px-2 py-1.5 text-[11px] font-medium text-brand hover:bg-brand-soft"
+                    >
+                      {t("community.notify.markAllRead")}
+                    </button>
+                  </form>
+                ) : null}
+                <button
+                  type="button"
+                  className="grid size-9 place-items-center rounded-xl text-muted hover:bg-surface-2 hover:text-fg md:hidden"
+                  aria-label={t("common.close")}
+                  onClick={() => setOpen(false)}
+                >
+                  <X size={18} aria-hidden />
+                </button>
+              </div>
+            </div>
+
+            {items.length === 0 ? (
+              <p className="px-4 py-10 text-center text-sm text-muted">
+                {t("dashboard.notificationsEmpty")}
+              </p>
+            ) : (
+              <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain px-2 py-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                {items.map((n) => {
+                  const href = n.recipeId ? `/community/posts/${n.recipeId}` : "/community";
+                  const { title, context, Icon } = metaFor(n, t);
+                  const actor = n.actorName ?? t("community.unknownAuthor");
+                  return (
+                    <li key={n.id}>
+                      <Link
+                        href={href}
+                        onClick={() => setOpen(false)}
+                        className={`flex gap-3 rounded-2xl px-2.5 py-2.5 transition hover:bg-surface-2 ${
+                          n.readAt ? "opacity-80" : "bg-brand-soft/35"
+                        }`}
+                      >
+                        <span className="relative mt-0.5 grid size-10 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-surface-2 text-xs font-semibold text-fg">
+                          {n.actorAvatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={n.actorAvatarUrl}
+                              alt=""
+                              className="size-full object-cover"
+                            />
+                          ) : n.actorId ? (
+                            initials(actor)
+                          ) : (
+                            <Icon size={16} className="text-brand" aria-hidden />
+                          )}
+                          <span className="absolute -right-0.5 -bottom-0.5 grid size-5 place-items-center rounded-full border border-surface bg-brand text-white">
+                            <Icon size={10} aria-hidden />
+                          </span>
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-start justify-between gap-2">
+                            <span className="truncate text-sm font-semibold text-fg">{title}</span>
+                            <time
+                              dateTime={n.createdAt}
+                              className="shrink-0 text-[11px] text-muted"
+                            >
+                              {formatRelativeTime(n.createdAt, locale)}
+                            </time>
+                          </span>
+                          <span className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted">
+                            {context}
+                          </span>
+                        </span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }

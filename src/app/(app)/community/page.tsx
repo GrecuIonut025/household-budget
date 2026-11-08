@@ -259,6 +259,7 @@ export default async function CommunityPage({
             householdId={household.id}
             canFavorite={writer}
             canReact={writer}
+            currentUserId={ctx.user.id}
             emptyTitle={t("community.feedEmptyTitle")}
             emptyBody={t("community.feedEmptyBody")}
           />
